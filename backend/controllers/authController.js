@@ -1,0 +1,314 @@
+import Admin from "../models/Admin.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { logAdminAction } from "../utils/auditLogger.js";
+import { sendSuccess, sendError } from "../utils/apiResponse.js";
+
+const INVALID_LOGIN_MESSAGE = "Invalid email or password";
+
+const PASSWORD_MIN_LENGTH = 12;
+const PASSWORD_MAX_BYTES = 72;
+
+// bcrypt only considers the first 72 bytes of a password.
+// Rejecting longer UTF-8 passwords avoids ambiguous authentication behavior.
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$C6UzMDM.H6dfI/f/IKcEe.FmQfX6FJ4G1mKxjQ2rj5gN8N7q7Y9uW";
+
+const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const getPasswordByteLength = (password) => {
+  return Buffer.byteLength(password, "utf8");
+};
+
+const isValidPasswordLength = (password) => {
+  const byteLength = getPasswordByteLength(password);
+
+  return (
+    password.length >= PASSWORD_MIN_LENGTH &&
+    byteLength <= PASSWORD_MAX_BYTES
+  );
+};
+
+/**
+ * Create a short-lived access token.
+ *
+ * The auth middleware re-checks the Admin record on every
+ * authenticated request, so disabling/deleting/demoting an
+ * account takes effect immediately rather than waiting for
+ * the JWT to expire.
+ */
+const createAccessToken = (admin) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  return jwt.sign(
+    {
+      id: admin._id.toString(),
+      role: admin.role,
+      email: admin.email
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1h"
+    }
+  );
+};
+
+/**
+ * Admin login
+ */
+export const loginAdmin = async (req, res) => {
+  const email = String(req.body?.email || "")
+    .trim()
+    .toLowerCase();
+
+  const password = String(req.body?.password || "");
+
+  try {
+    if (!email || !password) {
+      await logAdminAction(req, {
+        action: "LOGIN_FAILED",
+        entity: "ADMIN",
+        email
+      });
+
+      return sendError(
+        res,
+        "Email and password are required",
+        400
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      await logAdminAction(req, {
+        action: "LOGIN_FAILED",
+        entity: "ADMIN",
+        email
+      });
+
+      return sendError(
+        res,
+        INVALID_LOGIN_MESSAGE,
+        401
+      );
+    }
+
+    if (!isValidPasswordLength(password)) {
+      await logAdminAction(req, {
+        action: "LOGIN_FAILED",
+        entity: "ADMIN",
+        email
+      });
+
+      return sendError(
+        res,
+        INVALID_LOGIN_MESSAGE,
+        401
+      );
+    }
+
+    const admin = await Admin.findOne({ email });
+
+    /*
+     * Always perform a bcrypt comparison.
+     *
+     * This reduces the timing difference between:
+     * - an unknown email
+     * - an existing email with a wrong password
+     */
+    const passwordHash = admin?.password || DUMMY_PASSWORD_HASH;
+
+    const isMatch = await bcrypt.compare(
+      password,
+      passwordHash
+    );
+
+    if (!admin || !isMatch) {
+      await logAdminAction(req, {
+        action: "LOGIN_FAILED",
+        entity: "ADMIN",
+        ...(admin?._id
+          ? { entityId: admin._id }
+          : {}),
+        ...(admin?.email
+          ? { email: admin.email }
+          : { email })
+      });
+
+      return sendError(
+        res,
+        INVALID_LOGIN_MESSAGE,
+        401
+      );
+    }
+
+    /*
+     * Account status is checked after password verification
+     * so inactive accounts do not reveal their state through
+     * a different authentication response.
+     */
+    if (admin.isActive !== true) {
+      await logAdminAction(req, {
+        action: "LOGIN_BLOCKED",
+        entity: "ADMIN",
+        entityId: admin._id,
+        adminId: admin._id,
+        email: admin.email
+      });
+
+      return sendError(
+        res,
+        INVALID_LOGIN_MESSAGE,
+        401
+      );
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
+    const token = createAccessToken(admin);
+
+    await logAdminAction(req, {
+      action: "LOGIN_SUCCESS",
+      entity: "ADMIN",
+      entityId: admin._id,
+      adminId: admin._id,
+      email: admin.email
+    });
+
+    return sendSuccess(res, {
+      token,
+      expiresIn: 3600,
+      admin: {
+        id: admin._id,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } catch (error) {
+    console.error("Admin login error:", error);
+
+    return sendError(
+      res,
+      "Login failed",
+      500
+    );
+  }
+};
+
+/**
+ * Change admin password
+ */
+export const changePassword = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return sendError(
+        res,
+        "Authentication required",
+        401
+      );
+    }
+
+    const oldPassword = String(
+      req.body?.oldPassword || ""
+    );
+
+    const newPassword = String(
+      req.body?.newPassword || ""
+    );
+
+    if (!oldPassword || !newPassword) {
+      return sendError(
+        res,
+        "Old and new passwords are required",
+        400
+      );
+    }
+
+    if (!isValidPasswordLength(newPassword)) {
+      return sendError(
+        res,
+        `New password must be at least ${PASSWORD_MIN_LENGTH} characters and no more than ${PASSWORD_MAX_BYTES} UTF-8 bytes`,
+        400
+      );
+    }
+
+    if (oldPassword === newPassword) {
+      return sendError(
+        res,
+        "New password must be different from the current password",
+        400
+      );
+    }
+
+    const admin = await Admin.findById(req.user.id);
+
+    if (!admin) {
+      return sendError(
+        res,
+        "Admin not found",
+        404
+      );
+    }
+
+    if (admin.isActive !== true) {
+      return sendError(
+        res,
+        "Admin account is inactive",
+        403
+      );
+    }
+
+    const isMatch = await bcrypt.compare(
+      oldPassword,
+      admin.password
+    );
+
+    if (!isMatch) {
+      await logAdminAction(req, {
+        action: "CHANGE_PASSWORD_FAILED",
+        entity: "ADMIN",
+        entityId: admin._id,
+        adminId: admin._id,
+        email: admin.email
+      });
+
+      return sendError(
+        res,
+        "Current password is incorrect",
+        401
+      );
+    }
+
+    admin.password = await bcrypt.hash(
+      newPassword,
+      12
+    );
+
+    await admin.save();
+
+    await logAdminAction(req, {
+      action: "CHANGE_PASSWORD",
+      entity: "ADMIN",
+      entityId: admin._id,
+      adminId: admin._id,
+      email: admin.email
+    });
+
+    return sendSuccess(res, {
+      message: "Password changed successfully"
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+
+    return sendError(
+      res,
+      "Unable to change password",
+      500
+    );
+  }
+};
