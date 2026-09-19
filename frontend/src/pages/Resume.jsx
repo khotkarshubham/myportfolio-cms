@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiArrowDown, FiFileText } from "react-icons/fi";
 import API from "../services/api";
+import PublicPage from "../components/PublicPage";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const SERVER_BASE = API_BASE.replace(/\/api\/?$/, "");
@@ -63,8 +64,7 @@ export default function Resume() {
   };
 
   return (
-    <section className="public-page">
-      <div className="public-page-inner public-page-compact">
+    <PublicPage innerClassName="public-page-compact">
         <span className="section-index">PROFILE</span>
 
         <h1 className="public-title">A concise view of the work.</h1>
@@ -108,7 +108,6 @@ export default function Resume() {
             </a>
           )}
         </div>
-      </div>
-    </section>
+    </PublicPage>
   );
 }

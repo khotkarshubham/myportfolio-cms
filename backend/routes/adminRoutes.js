@@ -9,7 +9,7 @@ import { createSkill, deleteSkill } from "../controllers/skillController.js";
 import { getContacts, deleteContact } from "../controllers/contactController.js";
 import { updateProfile } from "../controllers/profileController.js";
 import { createCertification, updateCertification, deleteCertification } from "../controllers/certificationController.js";
-import { createExperience, updateExperience, deleteExperience } from "../controllers/experienceController.js";
+import { createExperience, updateExperience, deleteExperience, getAdminExperiences, reorderExperiences } from "../controllers/experienceController.js";
 
 const router = express.Router();
 const canEditContent = allowRoles("superadmin", "editor");
@@ -33,7 +33,9 @@ router.post("/certifications", authMiddleware, canEditContent, certificationUplo
 router.put("/certifications/:id", authMiddleware, canEditContent, certificationUpload, updateCertification);
 router.delete("/certifications/:id", authMiddleware, canEditContent, deleteCertification);
 
+router.get("/experiences", authMiddleware, canReadAdmin, getAdminExperiences);
 router.post("/experiences", authMiddleware, canEditContent, experienceUpload, createExperience);
+router.put("/experiences/reorder", authMiddleware, canEditContent, reorderExperiences);
 router.put("/experiences/:id", authMiddleware, canEditContent, experienceUpload, updateExperience);
 router.delete("/experiences/:id", authMiddleware, canEditContent, deleteExperience);
 

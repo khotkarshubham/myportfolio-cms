@@ -67,6 +67,8 @@ export const createCertification = async (req, res) => {
   try {
     const name = sanitizeText(req.body?.name, 200);
     const url = String(req.body?.url || "").trim();
+    const issuer = sanitizeText(req.body?.issuer || "", 200);
+    const year = sanitizeText(req.body?.year || "", 20);
 
     if (!name) {
       return sendError(
@@ -103,6 +105,8 @@ export const createCertification = async (req, res) => {
     const certification = await Certification.create({
       name,
       url,
+      issuer,
+      year,
       file: uploadedImagePath || ""
     });
 
@@ -183,6 +187,14 @@ export const updateCertification = async (req, res) => {
         );
       }
       certification.url = url;
+    }
+
+    if (req.body?.issuer !== undefined) {
+      certification.issuer = sanitizeText(req.body.issuer || "", 200);
+    }
+
+    if (req.body?.year !== undefined) {
+      certification.year = sanitizeText(req.body.year || "", 20);
     }
 
     /*

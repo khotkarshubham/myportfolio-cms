@@ -4,6 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
+    "migrate:experiences": "node scripts/migrateExperiencesToOrganizations.js",
     "dev": "nodemon server.js",
     "start": "node server.js"
   },

@@ -21,6 +21,20 @@ const certificationSchema = new mongoose.Schema(
       maxlength: 2048
     },
 
+    issuer: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: ""
+    },
+
+    year: {
+      type: String,
+      trim: true,
+      maxlength: 20,
+      default: ""
+    },
+
     /*
      * Relative path to an uploaded certification image/file.
      */
