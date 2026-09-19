@@ -20,7 +20,7 @@ export default function AdminProjects() {
 
       const res = await API.get("/public/projects");
 
-      setProjects(res.data);
+      setProjects(Array.isArray(res.data) ? res.data : []);
 
     } catch (err) {
 

@@ -17,7 +17,7 @@ export default function AdminCertifications(){
 
     const res=await API.get("/public/certifications");
 
-    setCerts(res.data);
+    setCerts(Array.isArray(res.data) ? res.data : []);
 
   };
 

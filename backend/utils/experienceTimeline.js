@@ -112,20 +112,53 @@ export const axisYears = (roles = []) => {
   return list;
 };
 
+export const sentencesFrom = (text = "") =>
+  String(text)
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 18)
+    .slice(0, 5);
+
 export const toPublicOrganization = (doc) => {
-  const roles = sortRoles(doc.roles || []).map((role, index) => ({
-    _id: role._id,
-    role: role.role,
-    startDate: role.startDate,
-    endDate: role.endDate || "",
-    description: role.description || "",
-    technologies: (role.technologies || []).filter(Boolean),
-    promotionLabel:
-      role.promotionLabel ||
-      (index > 0 ? "PROMOTED" : ""),
-    order: Number.isFinite(Number(role.order)) ? Number(role.order) : index,
-    isCurrent: isCurrentRole(role)
-  }));
+  const roles = sortRoles(doc.roles || []).map((role, index) => {
+    const isCurrent = isCurrentRole(role);
+    const technologies = (role.technologies || []).filter(Boolean);
+    const achievements = (role.achievements || []).map((item) => String(item).trim()).filter(Boolean);
+    const impact = (role.impact || [])
+      .map((item) => ({
+        value: String(item?.value || "").trim(),
+        label: String(item?.label || "").trim()
+      }))
+      .filter((item) => item.value && item.label);
+    const tenure = tenureLabel(role.startDate, role.endDate);
+
+    return {
+      _id: role._id,
+      role: role.role,
+      startDate: role.startDate,
+      endDate: role.endDate || "",
+      description: role.description || "",
+      technologies,
+      promotionLabel:
+        role.promotionLabel ||
+        (index > 0 ? "PROMOTED" : ""),
+      achievements: achievements.length ? achievements : sentencesFrom(role.description),
+      impact: impact.length
+        ? impact
+        : [
+            tenure ? { value: tenure, label: "Tenure" } : null,
+            technologies.length
+              ? { value: String(technologies.length), label: "Core tools" }
+              : null,
+            isCurrent ? { value: "Live", label: "Status" } : null,
+            index > 0 ? { value: "Yes", label: "Promotion" } : null
+          ].filter(Boolean).slice(0, 4),
+      order: Number.isFinite(Number(role.order)) ? Number(role.order) : index,
+      isCurrent,
+      tenure
+    };
+  });
 
   const window = organizationWindow(roles);
 

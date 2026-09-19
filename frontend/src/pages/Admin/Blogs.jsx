@@ -16,7 +16,7 @@ function AdminBlogs() {
 
     const res = await API.get("/public/blogs");
 
-    setBlogs(res.data);
+    setBlogs(Array.isArray(res.data) ? res.data : []);
 
   };
 

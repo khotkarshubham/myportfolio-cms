@@ -21,12 +21,38 @@ const item = {
 
 export default function SkillList() {
   const [skills, setSkills] = useState([]);
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
+    let mounted = true;
+
     API.get("/public/skills")
-      .then(res => setSkills(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setSkills([]));
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res.data)
+          ? res.data.filter((skill) => skill && skill.name)
+          : [];
+        setSkills(list);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSkills([]);
+        setStatus("error");
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  if (status === "loading") {
+    return <div className="data-empty">Loading tools…</div>;
+  }
+
+  if (status === "error") {
+    return <div className="data-empty">Unable to load tools right now.</div>;
+  }
 
   if (!skills.length) {
     return <div className="data-empty">No tools added yet.</div>;
@@ -40,12 +66,12 @@ export default function SkillList() {
       whileInView="visible"
       viewport={{ once: true, amount: 0.18 }}
     >
-      {skills.map(skill => {
+      {skills.map((skill) => {
         const Icon = skillIcons[skill.name?.toLowerCase()];
 
         return (
           <motion.div
-            key={skill._id}
+            key={skill._id || skill.name}
             variants={item}
             className="skill-chip"
             whileHover={{ y: -3 }}

@@ -6,8 +6,18 @@ import PublicPage from "../components/PublicPage";
 
 export default function PublicBlogs() {
   const [blogs, setBlogs] = useState([]);
+  const [status, setStatus] = useState("loading");
+
   useEffect(() => {
-    API.get("/public/blogs").then(res => setBlogs(Array.isArray(res.data) ? res.data : [])).catch(() => setBlogs([]));
+    API.get("/public/blogs")
+      .then((res) => {
+        setBlogs(Array.isArray(res.data) ? res.data.filter((item) => item && item.slug) : []);
+        setStatus("ready");
+      })
+      .catch(() => {
+        setBlogs([]);
+        setStatus("error");
+      });
   }, []);
 
   return (
@@ -15,6 +25,11 @@ export default function PublicBlogs() {
       <span className="section-index">FIELD NOTES</span>
       <h1 className="public-title">Writing for people who ship.</h1>
       <p className="public-lede">Notes on DevOps, cloud infrastructure, delivery systems, networking and the small details that make production calmer.</p>
+      {status === "loading" && <div className="data-empty">Loading writing…</div>}
+      {status === "error" && <div className="data-empty">Unable to load writing right now.</div>}
+      {status === "ready" && !blogs.length && (
+        <div className="data-empty">Writing will appear here once it is published.</div>
+      )}
       <div className="repo-grid">
         {blogs.map((blog, i) => (
           <Link key={blog._id} to={`/blog/${blog.slug}`} className="repo-card">

@@ -51,6 +51,43 @@ const normalizeTechnologies = (value) => {
     .slice(0, 20);
 };
 
+const normalizeAchievements = (value) => {
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/\n+/)
+      : [];
+
+  return list
+    .map((item) => sanitizeText(item, 240))
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+};
+
+const normalizeImpact = (value) => {
+  const parsed = parseJsonMaybe(value);
+  const list = Array.isArray(parsed)
+    ? parsed
+    : typeof value === "string"
+      ? value.split(/\n+/).map((line) => {
+          const [first, ...rest] = line.split("|");
+          return {
+            value: first,
+            label: rest.join("|")
+          };
+        })
+      : [];
+
+  return list
+    .map((item) => ({
+      value: sanitizeText(item?.value || "", 40),
+      label: sanitizeText(item?.label || "", 80)
+    }))
+    .filter((item) => item.value && item.label)
+    .slice(0, 6);
+};
+
 const normalizeWebsite = (value) => {
   const url = String(value || "").trim();
   if (!url) return "";
@@ -79,9 +116,11 @@ const normalizeRole = (role, index) => {
     role: title,
     startDate,
     endDate,
-    description: sanitizeText(role?.description || "", 1000),
+    description: sanitizeText(role?.description || "", 2000),
     technologies: normalizeTechnologies(role?.technologies),
     promotionLabel: sanitizeText(role?.promotionLabel || "", 40),
+    achievements: normalizeAchievements(role?.achievements),
+    impact: normalizeImpact(role?.impact),
     order: parseOrder(role?.order, index)
   };
 };

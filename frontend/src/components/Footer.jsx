@@ -1,9 +1,9 @@
 import { FaEnvelope, FaGithub, FaInstagram, FaLinkedin, FaWhatsapp } from "react-icons/fa";
-import { Link } from "react-router-dom";
 import useSocials from "../hooks/useSocials";
 
 export default function Footer() {
   const socials = useSocials();
+  const year = new Date().getFullYear();
 
   return (
     <footer className="site-footer">
@@ -13,15 +13,8 @@ export default function Footer() {
           <p className="footer-meta">
             Cloud &amp; DevOps · reliable infrastructure and delivery systems.
           </p>
+          <p className="footer-copy">© {year} Shubham Khotkar</p>
         </div>
-
-        <nav className="footer-nav" aria-label="Footer navigation">
-          <Link to="/">Home</Link>
-          <Link to="/projects">Projects</Link>
-          <Link to="/blog">Blog</Link>
-          <Link to="/resume">Resume</Link>
-          <Link to="/contact">Contact</Link>
-        </nav>
 
         <div className="footer-links">
           {socials.github && (

@@ -8,6 +8,8 @@ const emptyRole = () => ({
   description: "",
   technologies: "",
   promotionLabel: "",
+  achievements: "",
+  impact: "",
   isCurrent: false,
   order: 0,
 });
@@ -37,6 +39,10 @@ const toForm = (org) => ({
     description: role.description || "",
     technologies: (role.technologies || []).join(", "),
     promotionLabel: role.promotionLabel || "",
+    achievements: (role.achievements || []).join("\n"),
+    impact: (role.impact || [])
+      .map((item) => `${item.value} | ${item.label}`)
+      .join("\n"),
     isCurrent: Boolean(role.isCurrent) || !role.endDate,
     order: role.order ?? index,
   })),
@@ -59,6 +65,8 @@ const toPayload = (form) => ({
     description: role.description,
     technologies: role.technologies,
     promotionLabel: role.promotionLabel,
+    achievements: role.achievements,
+    impact: role.impact,
     isCurrent: role.isCurrent,
     order: index,
   })),
@@ -294,6 +302,24 @@ export default function AdminExperience() {
                 placeholder="Technologies (AWS, Kubernetes, Terraform)"
                 onChange={(e) =>
                   updateRole(index, { technologies: e.target.value })
+                }
+                className="w-full p-3 rounded bg-slate-900 border border-gray-700"
+              />
+
+              <textarea
+                value={role.achievements}
+                placeholder="Key achievements, one per line"
+                onChange={(e) =>
+                  updateRole(index, { achievements: e.target.value })
+                }
+                className="w-full p-3 rounded bg-slate-900 border border-gray-700"
+              />
+
+              <textarea
+                value={role.impact}
+                placeholder={"Impact metrics, one per line\n99.9% | Uptime"}
+                onChange={(e) =>
+                  updateRole(index, { impact: e.target.value })
                 }
                 className="w-full p-3 rounded bg-slate-900 border border-gray-700"
               />

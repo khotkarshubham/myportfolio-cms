@@ -1,8 +1,9 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { FiArrowUpRight } from "react-icons/fi";
+import { FiArrowUpRight, FiAward } from "react-icons/fi";
 import API from "../services/api";
 import assetUrl from "../utils/assetUrl";
+import SectionHeading from "./SectionHeading";
 
 const grid = {
   hidden: {},
@@ -25,31 +26,87 @@ const mark = (cert) => {
   return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
 };
 
-export default function Certifications() {
+const credentialHref = (url) => {
+  const value = String(url || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value.replace(/^\/+/, "")}`;
+};
+
+export default function Certifications({ headingIcon = <FiAward /> }) {
   const [certs, setCerts] = useState([]);
+  const [status, setStatus] = useState("loading");
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    let mounted = true;
+
     API.get("/public/certifications")
-      .then((res) => setCerts(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setCerts([]));
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res.data)
+          ? res.data.filter((item) => item && item.name)
+          : [];
+        setCerts(list);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setCerts([]);
+        setStatus("error");
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  if (!certs.length) return null;
-
-  return (
-    <section className="credential-block" aria-labelledby="credentials-heading">
-      <div className="section-heading compact journey-heading">
-        <div>
-          <span className="section-index">03 / CREDENTIALS</span>
-          <h2 id="credentials-heading">Verified Credentials</h2>
-          <p className="section-lede">Certifications that validate the work.</p>
-        </div>
+  const heading = (
+    <SectionHeading
+      icon={headingIcon}
+      title="Verified"
+      accent="Credentials"
+      headingId="credentials-heading"
+      lede="Certifications that validate the work."
+      aside={
         <p className="section-aside">
           Continuously learning, continuously building. These certifications
           represent a commitment to staying current.
         </p>
-      </div>
+      }
+    />
+  );
+
+  if (status === "loading") {
+    return (
+      <section className="credential-block" aria-labelledby="credentials-heading">
+        {heading}
+        <div className="data-empty">Loading credentials…</div>
+      </section>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <section className="credential-block" aria-labelledby="credentials-heading">
+        {heading}
+        <div className="data-empty">Unable to load credentials right now.</div>
+      </section>
+    );
+  }
+
+  if (!certs.length) {
+    return (
+      <section className="credential-block" aria-labelledby="credentials-heading">
+        {heading}
+        <div className="data-empty">Credentials will appear here once they are published.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="credential-block" aria-labelledby="credentials-heading">
+      {heading}
 
       <motion.div
         className="credential-rail"
@@ -58,33 +115,41 @@ export default function Certifications() {
         whileInView={reduceMotion ? undefined : "visible"}
         viewport={{ once: true, amount: 0.16 }}
       >
-        {certs.map((cert) => (
-          <motion.a
-            key={cert._id}
-            href={cert.url?.startsWith("http") ? cert.url : `https://${cert.url}`}
-            target="_blank"
-            rel="noreferrer"
-            variants={reduceMotion ? undefined : card}
-            className="credential-card"
-          >
-            <div className="credential-card-top">
-              {cert.file ? (
-                <img src={assetUrl(cert.file)} alt="" className="credential-mark" />
-              ) : (
-                <span className="credential-mark is-fallback" aria-hidden="true">
-                  {mark(cert)}
+        {certs.map((cert) => {
+          const href = credentialHref(cert.url);
+          const CardTag = href ? motion.a : motion.article;
+          const linkProps = href
+            ? { href, target: "_blank", rel: "noreferrer" }
+            : {};
+
+          return (
+            <CardTag
+              key={cert._id || cert.name}
+              {...linkProps}
+              variants={reduceMotion ? undefined : card}
+              className="credential-card"
+            >
+              <div className="credential-card-top">
+                {cert.file ? (
+                  <img src={assetUrl(cert.file)} alt="" className="credential-mark" />
+                ) : (
+                  <span className="credential-mark is-fallback" aria-hidden="true">
+                    {mark(cert)}
+                  </span>
+                )}
+                <span className="credential-badge">Certified</span>
+              </div>
+              <strong>{cert.name}</strong>
+              <span className="credential-org">{cert.issuer || "Verified credential"}</span>
+              {cert.year && <span className="credential-issued">Issued {cert.year}</span>}
+              {href ? (
+                <span className="credential-link">
+                  View credential <FiArrowUpRight />
                 </span>
-              )}
-              <span className="credential-badge">Certified</span>
-            </div>
-            <strong>{cert.name}</strong>
-            <span className="credential-org">{cert.issuer || "Verified credential"}</span>
-            {cert.year && <span className="credential-issued">Issued {cert.year}</span>}
-            <span className="credential-link">
-              View credential <FiArrowUpRight />
-            </span>
-          </motion.a>
-        ))}
+              ) : null}
+            </CardTag>
+          );
+        })}
       </motion.div>
     </section>
   );

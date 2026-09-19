@@ -6,8 +6,18 @@ import PublicPage from "../components/PublicPage";
 
 export default function PublicProjects() {
   const [projects, setProjects] = useState([]);
+  const [status, setStatus] = useState("loading");
+
   useEffect(() => {
-    API.get("/public/projects").then(res => setProjects(Array.isArray(res.data) ? res.data : [])).catch(() => setProjects([]));
+    API.get("/public/projects")
+      .then((res) => {
+        setProjects(Array.isArray(res.data) ? res.data.filter((item) => item && item.title) : []);
+        setStatus("ready");
+      })
+      .catch(() => {
+        setProjects([]);
+        setStatus("error");
+      });
   }, []);
 
   return (
@@ -15,8 +25,13 @@ export default function PublicProjects() {
       <span className="section-index">SELECTED WORK</span>
       <h1 className="public-title">Systems with a job to do.</h1>
       <p className="public-lede">A focused collection of projects spanning cloud infrastructure, automation, delivery and practical engineering.</p>
+      {status === "loading" && <div className="data-empty">Loading projects…</div>}
+      {status === "error" && <div className="data-empty">Unable to load projects right now.</div>}
+      {status === "ready" && !projects.length && (
+        <div className="data-empty">Projects will appear here once they are published.</div>
+      )}
       <div className="repo-grid">
-        {projects.map(project => (
+        {projects.map((project) => (
           <article key={project._id} className="repo-card">
             {project.image && <img src={assetUrl(project.image)} alt={project.title} className="repo-image" />}
             <div className="repo-top"><span>Project</span><FiArrowUpRight /></div>

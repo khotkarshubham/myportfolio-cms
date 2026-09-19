@@ -40,13 +40,28 @@ const getCertificationUploadPath = (filePath) =>
  *
  * Public endpoint.
  */
+const toPublicUploadPath = (file) => {
+  const value = String(file || "").replace(/\\/g, "/");
+  if (!value) return "";
+  if (value.startsWith("/uploads/")) return value;
+
+  const index = value.toLowerCase().indexOf("/uploads/");
+  return index === -1 ? "" : value.slice(index);
+};
+
 export const getCertifications = async (req, res) => {
   try {
     const certifications = await Certification.find()
       .sort({ createdAt: -1 })
       .lean();
 
-    return sendSuccess(res, certifications);
+    return sendSuccess(
+      res,
+      certifications.map((certification) => ({
+        ...certification,
+        file: toPublicUploadPath(certification.file)
+      }))
+    );
   } catch (error) {
     console.error("Get certifications error:", error);
 

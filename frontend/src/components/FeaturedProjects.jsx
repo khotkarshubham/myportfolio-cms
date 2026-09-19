@@ -22,14 +22,38 @@ const card = {
 
 export default function FeaturedProjects({ limit = 4 }) {
   const [projects, setProjects] = useState([]);
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
+    let mounted = true;
+
     API.get("/public/projects")
-      .then((res) =>
-        setProjects(Array.isArray(res.data) ? res.data.slice(0, limit) : [])
-      )
-      .catch(() => setProjects([]));
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res.data)
+          ? res.data.filter((project) => project && project.title)
+          : [];
+        setProjects(list.slice(0, limit));
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setProjects([]);
+        setStatus("error");
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [limit]);
+
+  if (status === "loading") {
+    return <div className="data-empty">Loading projects…</div>;
+  }
+
+  if (status === "error") {
+    return <div className="data-empty">Unable to load projects right now.</div>;
+  }
 
   if (!projects.length) {
     return <div className="data-empty">Projects will appear here once they are published.</div>;

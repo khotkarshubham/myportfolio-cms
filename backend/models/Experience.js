@@ -42,6 +42,35 @@ const roleSchema = new mongoose.Schema(
       maxlength: 40,
       default: ""
     },
+    achievements: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          maxlength: 240
+        }
+      ],
+      default: []
+    },
+    impact: {
+      type: [
+        {
+          value: {
+            type: String,
+            trim: true,
+            maxlength: 40,
+            default: ""
+          },
+          label: {
+            type: String,
+            trim: true,
+            maxlength: 80,
+            default: ""
+          }
+        }
+      ],
+      default: []
+    },
     order: {
       type: Number,
       default: 0,
@@ -55,6 +84,16 @@ const roleSchema = new mongoose.Schema(
 roleSchema.path("technologies").validate(
   (value) => Array.isArray(value) && value.length <= 20,
   "A role can have a maximum of 20 technologies"
+);
+
+roleSchema.path("achievements").validate(
+  (value) => Array.isArray(value) && value.length <= 8,
+  "A role can have a maximum of 8 achievements"
+);
+
+roleSchema.path("impact").validate(
+  (value) => Array.isArray(value) && value.length <= 6,
+  "A role can have a maximum of 6 impact metrics"
 );
 
 const experienceSchema = new mongoose.Schema(
