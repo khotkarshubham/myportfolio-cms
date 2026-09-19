@@ -42,11 +42,15 @@ export default function Contact() {
   const visibleChannels = CHANNELS.filter((channel) => socials[channel.key]);
 
   return (
-    <PublicPage innerClassName="public-page-contact">
+    <PublicPage>
       <div className="contact-layout">
         <div className="contact-intro">
-          <span className="section-index">CONTACT</span>
-          <h1 className="public-title">Let’s build something dependable.</h1>
+          <span className="section-index is-icon" aria-hidden="true">
+            <FiMail />
+          </span>
+          <h1 className="public-title">
+            Let’s build something <span className="section-heading-accent">dependable.</span>
+          </h1>
           <p className="public-lede">
             Have an infrastructure problem, a platform idea, or a deployment
             that needs less drama? Send a note or reach me on any of these channels.

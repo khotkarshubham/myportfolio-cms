@@ -5,9 +5,7 @@ export default function PublicPage({
 }) {
   return (
     <section className={`public-page ${className}`.trim()}>
-      <div className="home-hero-shade" />
-      <div className="home-hero-grid" />
-      <div className={`public-page-inner ${innerClassName}`.trim()}>
+      <div className={`public-page-inner content-width ${innerClassName}`.trim()}>
         {children}
       </div>
     </section>

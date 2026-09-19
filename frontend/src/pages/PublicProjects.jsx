@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiArrowUpRight } from "react-icons/fi";
+import { FiArrowUpRight, FiLayers } from "react-icons/fi";
 import API from "../services/api";
 import assetUrl from "../utils/assetUrl";
 import PublicPage from "../components/PublicPage";
@@ -22,9 +22,16 @@ export default function PublicProjects() {
 
   return (
     <PublicPage>
-      <span className="section-index">SELECTED WORK</span>
-      <h1 className="public-title">Systems with a job to do.</h1>
-      <p className="public-lede">A focused collection of projects spanning cloud infrastructure, automation, delivery and practical engineering.</p>
+      <span className="section-index is-icon" aria-hidden="true">
+        <FiLayers />
+      </span>
+      <h1 className="public-title">
+        Selected <span className="section-heading-accent">engineering work.</span>
+      </h1>
+      <p className="public-lede">
+        A focused collection of projects spanning cloud infrastructure, automation,
+        delivery and practical engineering.
+      </p>
       {status === "loading" && <div className="data-empty">Loading projects…</div>}
       {status === "error" && <div className="data-empty">Unable to load projects right now.</div>}
       {status === "ready" && !projects.length && (

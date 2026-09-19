@@ -7,7 +7,7 @@ export default function Footer() {
 
   return (
     <footer className="site-footer">
-      <div className="footer-inner">
+      <div className="footer-inner content-width">
         <div className="footer-brand-block">
           <div className="footer-brand">Shubham Khotkar</div>
           <p className="footer-meta">
