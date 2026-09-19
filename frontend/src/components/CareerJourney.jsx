@@ -39,6 +39,7 @@ const summaryFrom = (organizations) => {
 export default function CareerJourney() {
   const [organizations, setOrganizations] = useState([]);
   const [status, setStatus] = useState("loading");
+  const [canScroll, setCanScroll] = useState(false);
   const trackRef = useRef(null);
 
   useEffect(() => {
@@ -75,11 +76,32 @@ export default function CareerJourney() {
     return (current.at(-1) || timeline.at(-1))?._id;
   }, [timeline]);
 
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return undefined;
+
+    const updateOverflow = () => {
+      setCanScroll(track.scrollWidth > track.clientWidth + 12);
+    };
+
+    updateOverflow();
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(track);
+    track.addEventListener("scroll", updateOverflow, { passive: true });
+    window.addEventListener("resize", updateOverflow);
+
+    return () => {
+      observer.disconnect();
+      track.removeEventListener("scroll", updateOverflow);
+      window.removeEventListener("resize", updateOverflow);
+    };
+  }, [timeline]);
+
   const scrollBoard = (direction) => {
-    trackRef.current?.scrollBy({
-      left: direction * Math.min(320, window.innerWidth * 0.72),
-      behavior: "smooth",
-    });
+    const track = trackRef.current;
+    if (!track) return;
+    const distance = Math.min(360, Math.max(track.clientWidth * 0.8, 240));
+    track.scrollBy({ left: direction * distance, behavior: "smooth" });
   };
 
   if (status === "loading") {
@@ -95,9 +117,9 @@ export default function CareerJourney() {
   }
 
   return (
-    <div className="career-timeline">
+    <div className={`career-timeline ${timeline.length === 1 ? "is-single" : ""}`}>
       <div className="career-timeline-frame">
-        {organizations.length > 1 && (
+        {canScroll && (
           <button
             type="button"
             className="timeline-nav is-prev"
@@ -119,7 +141,7 @@ export default function CareerJourney() {
           ))}
         </div>
 
-        {organizations.length > 1 && (
+        {canScroll && (
           <button
             type="button"
             className="timeline-nav is-next"
@@ -136,9 +158,13 @@ export default function CareerJourney() {
           const Icon = stat.icon;
           return (
             <li key={stat.label}>
-              <Icon aria-hidden="true" />
-              <strong>{stat.value}</strong>
-              <span>{stat.label}</span>
+              <span className="timeline-stat-icon" aria-hidden="true">
+                <Icon />
+              </span>
+              <span className="timeline-stat-copy">
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
+              </span>
             </li>
           );
         })}

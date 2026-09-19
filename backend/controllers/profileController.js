@@ -11,6 +11,27 @@ import { logAdminAction } from "../utils/auditLogger.js";
 const buildUploadPath = (filename, folder) =>
   `/uploads/${folder}/${filename}`;
 
+const validateHttpUrl = (value) => {
+  if (!value) return "";
+
+  try {
+    const url = new URL(String(value).trim());
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+};
+
+const normalizeWhatsapp = (value) => {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return validateHttpUrl(trimmed);
+  }
+  return trimmed.replace(/[^\d+]/g, "").slice(0, 20);
+};
+
 const isManagedUpload = (filePath) =>
   typeof filePath === "string" &&
   filePath.startsWith("/uploads/");
@@ -66,6 +87,27 @@ export const updateProfile = async (req, res) => {
         ? sanitizeText(req.body.title, 300)
         : undefined;
 
+    const github =
+      req.body?.github !== undefined
+        ? validateHttpUrl(req.body.github)
+        : undefined;
+    const linkedin =
+      req.body?.linkedin !== undefined
+        ? validateHttpUrl(req.body.linkedin)
+        : undefined;
+    const instagram =
+      req.body?.instagram !== undefined
+        ? validateHttpUrl(req.body.instagram)
+        : undefined;
+    const whatsapp =
+      req.body?.whatsapp !== undefined
+        ? normalizeWhatsapp(req.body.whatsapp)
+        : undefined;
+    const email =
+      req.body?.email !== undefined
+        ? sanitizeText(req.body.email, 200)
+        : undefined;
+
     let profile = await Profile.findOne();
 
     if (!profile) {
@@ -118,6 +160,22 @@ export const updateProfile = async (req, res) => {
       }
 
       profile.title = title;
+    }
+
+    if (github !== undefined) profile.github = github;
+    if (linkedin !== undefined) profile.linkedin = linkedin;
+    if (instagram !== undefined) profile.instagram = instagram;
+    if (whatsapp !== undefined) profile.whatsapp = whatsapp;
+    if (email !== undefined) profile.email = email;
+
+    if (req.body?.github && github === "") {
+      return sendError(res, "GitHub must be a valid http(s) URL", 400);
+    }
+    if (req.body?.linkedin && linkedin === "") {
+      return sendError(res, "LinkedIn must be a valid http(s) URL", 400);
+    }
+    if (req.body?.instagram && instagram === "") {
+      return sendError(res, "Instagram must be a valid http(s) URL", 400);
     }
 
     if (image) {

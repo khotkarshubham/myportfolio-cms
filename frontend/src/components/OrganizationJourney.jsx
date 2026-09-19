@@ -33,39 +33,23 @@ export const compactDate = (value) => {
   return `${month} ${match[2]}`;
 };
 
-const shortCopy = (text = "", limit = 140) => {
-  const clean = String(text).replace(/\s+/g, " ").trim();
-  if (clean.length <= limit) return clean;
-  return `${clean.slice(0, limit - 1).trim()}…`;
-};
-
-function PromotionArc({ label }) {
-  if (!label) return null;
-
-  return (
-    <div className="timeline-promoted" aria-hidden="true">
-      <svg viewBox="0 0 120 36" preserveAspectRatio="none">
-        <path d="M2 34 C 28 4, 92 4, 118 34" />
-      </svg>
-      <small>{label.replace(/promoted/i, "Promoted")}</small>
-    </div>
-  );
-}
-
-function RoleCard({ role }) {
-  const techs = (role.technologies || []).filter(Boolean).slice(0, 4);
+function RoleCard({ role, promotedFrom }) {
+  const techs = (role.technologies || []).filter(Boolean).slice(0, 6);
 
   return (
     <article className={`timeline-card ${role.isCurrent ? "is-current" : ""}`}>
-      <p className="timeline-card-dates">
-        {compactDate(role.startDate)} – {compactDate(role.endDate)}
-      </p>
-      <div className="timeline-card-top">
-        <h4>{role.role}</h4>
+      <div className="timeline-card-meta">
+        <p className="timeline-card-dates">
+          {compactDate(role.startDate)} – {compactDate(role.endDate)}
+        </p>
         {role.isCurrent && <span className="timeline-current">Current</span>}
       </div>
+      <h4>{role.role}</h4>
+      {promotedFrom && (
+        <p className="timeline-promoted-label">{promotedFrom}</p>
+      )}
       {role.description && (
-        <p className="timeline-card-copy">{shortCopy(role.description, 132)}</p>
+        <p className="timeline-card-copy">{role.description}</p>
       )}
       {!!techs.length && (
         <div className="timeline-tech">
@@ -91,13 +75,13 @@ export default function OrganizationJourney({
   ]
     .filter(Boolean)
     .join(" · ");
+  const tenure = `${compactDate(organization.startDate)} – ${compactDate(organization.endDate)}`;
 
   return (
     <section
       className={`timeline-company ${highlight ? "is-current" : ""} ${
         continues ? "continues" : "is-end"
       }`}
-      style={{ "--role-count": Math.max(roles.length, 1) }}
       aria-label={organization.organization}
     >
       <header className="timeline-company-head">
@@ -112,32 +96,29 @@ export default function OrganizationJourney({
             {initials(organization.organization)}
           </span>
         )}
-        <div>
+        <div className="timeline-company-copy">
           <strong>{organization.organization}</strong>
-          {tagline && <p>{tagline}</p>}
+          <p>{tagline ? `${tagline} · ${tenure}` : tenure}</p>
         </div>
       </header>
 
-      <div className="timeline-track">
+      <ol className="timeline-roles">
         {roles.map((role, index) => (
-          <div
-            className={`timeline-node ${role.isCurrent ? "is-current" : ""}`}
-            key={`node-${role._id || role.role}-${index}`}
+          <li
+            className={`timeline-role-row ${role.isCurrent ? "is-current" : ""}`}
+            key={role._id || `${role.role}-${index}`}
           >
-            {index > 0 && <PromotionArc label={role.promotionLabel} />}
             <span
               className={`timeline-dot ${reduceMotion ? "is-static" : ""}`}
               aria-hidden="true"
             />
-          </div>
+            <RoleCard
+              role={role}
+              promotedFrom={index > 0 ? role.promotionLabel : ""}
+            />
+          </li>
         ))}
-      </div>
-
-      <div className="timeline-cards">
-        {roles.map((role, index) => (
-          <RoleCard key={role._id || `${role.role}-${index}`} role={role} />
-        ))}
-      </div>
+      </ol>
     </section>
   );
 }

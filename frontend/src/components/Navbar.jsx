@@ -5,33 +5,11 @@ import {
   FiGitPullRequest,
   FiHome,
   FiLayers,
-  FiMoon,
   FiSend,
-  FiSun,
   FiTerminal,
 } from "react-icons/fi";
-import { useTheme } from "../context/ThemeContext";
 import ProfileSection from "./ProfileSection";
-
-function ThemePull() {
-  const { dark, toggleTheme } = useTheme();
-
-  return (
-    <button
-      type="button"
-      className={`theme-pull ${dark ? "is-dark" : "is-light"}`}
-      onClick={toggleTheme}
-      aria-label={`Switch to ${dark ? "light" : "dark"} mode`}
-      title={`Switch to ${dark ? "light" : "dark"} mode`}
-    >
-      <span className="theme-track" aria-hidden="true">
-        <span className="theme-icon theme-sun"><FiSun /></span>
-        <span className="theme-icon theme-moon"><FiMoon /></span>
-        <span className="theme-orb" />
-      </span>
-    </button>
-  );
-}
+import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
   const location = useLocation();
@@ -118,7 +96,7 @@ export default function Navbar() {
           <Link to="/contact" className="nav-availability">
             Available for work <FiArrowUpRight />
           </Link>
-          <ThemePull />
+          <ThemeToggle />
         </div>
       </nav>
     </header>

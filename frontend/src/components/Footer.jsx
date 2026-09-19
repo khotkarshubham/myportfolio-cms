@@ -1,7 +1,10 @@
-import { FaGithub, FaLinkedin, FaEnvelope } from "react-icons/fa";
+import { FaEnvelope, FaGithub, FaInstagram, FaLinkedin, FaWhatsapp } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import useSocials from "../hooks/useSocials";
 
 export default function Footer() {
+  const socials = useSocials();
+
   return (
     <footer className="site-footer">
       <div className="footer-inner">
@@ -21,25 +24,31 @@ export default function Footer() {
         </nav>
 
         <div className="footer-links">
-          <a
-            href="https://github.com/khotkarshubham"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="GitHub"
-          >
-            <FaGithub />
-          </a>
-          <a
-            href="https://www.linkedin.com/in/shubhamkhotkar/"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="LinkedIn"
-          >
-            <FaLinkedin />
-          </a>
-          <a href="mailto:khotkarshubham@hotmail.com" aria-label="Email">
-            <FaEnvelope />
-          </a>
+          {socials.github && (
+            <a href={socials.github} target="_blank" rel="noreferrer" aria-label="GitHub">
+              <FaGithub />
+            </a>
+          )}
+          {socials.linkedin && (
+            <a href={socials.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn">
+              <FaLinkedin />
+            </a>
+          )}
+          {socials.instagram && (
+            <a href={socials.instagram} target="_blank" rel="noreferrer" aria-label="Instagram">
+              <FaInstagram />
+            </a>
+          )}
+          {socials.whatsapp && (
+            <a href={socials.whatsapp} target="_blank" rel="noreferrer" aria-label="WhatsApp">
+              <FaWhatsapp />
+            </a>
+          )}
+          {socials.mailto && (
+            <a href={socials.mailto} aria-label="Email">
+              <FaEnvelope />
+            </a>
+          )}
         </div>
       </div>
     </footer>
