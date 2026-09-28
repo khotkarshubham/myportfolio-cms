@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { logAdminAction } from "../utils/auditLogger.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
+import { validPassword } from "../utils/passwordPolicy.js";
 
 const INVALID_LOGIN_MESSAGE = "Invalid email or password";
 
@@ -49,6 +50,7 @@ const createAccessToken = (admin) => {
       id: admin._id.toString(),
       role: admin.role,
       email: admin.email
+      , sessionVersion: admin.sessionVersion || 0
     },
     process.env.JWT_SECRET,
     {
@@ -170,6 +172,7 @@ export const loginAdmin = async (req, res) => {
       throw new Error("JWT_SECRET is not configured");
     }
 
+    await Admin.updateOne({ _id: admin._id }, { $set: { lastLoginAt: new Date() } });
     const token = createAccessToken(admin);
 
     await logAdminAction(req, {
@@ -229,7 +232,7 @@ export const changePassword = async (req, res) => {
       );
     }
 
-    if (!isValidPasswordLength(newPassword)) {
+    if (!validPassword(req.body?.newPassword) || typeof req.body?.oldPassword !== "string" || getPasswordByteLength(oldPassword) > 72) {
       return sendError(
         res,
         `New password must be at least ${PASSWORD_MIN_LENGTH} characters and no more than ${PASSWORD_MAX_BYTES} UTF-8 bytes`,
@@ -280,16 +283,21 @@ export const changePassword = async (req, res) => {
       return sendError(
         res,
         "Current password is incorrect",
-        401
+        400
       );
     }
 
-    admin.password = await bcrypt.hash(
+    const password = await bcrypt.hash(
       newPassword,
       12
     );
 
-    await admin.save();
+    const updated = await Admin.findOneAndUpdate(
+      { _id: admin._id, password: admin.password, isActive: true },
+      { $set: { password, passwordChangedAt: new Date() }, $inc: { sessionVersion: 1 } },
+      { new: true, runValidators: true }
+    );
+    if (!updated) return sendError(res, "Your account changed during this request. Sign in again and retry.", 409);
 
     await logAdminAction(req, {
       action: "CHANGE_PASSWORD",
@@ -300,7 +308,8 @@ export const changePassword = async (req, res) => {
     });
 
     return sendSuccess(res, {
-      message: "Password changed successfully"
+      message: "Password changed successfully. Other sessions have been signed out.",
+      token: createAccessToken(updated)
     });
   } catch (error) {
     console.error("Change password error:", error);

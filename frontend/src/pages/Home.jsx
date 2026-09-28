@@ -19,6 +19,7 @@ import FeaturedProjects from "../components/FeaturedProjects";
 import GitHubGraph from "../components/GitHubGraph";
 import GitHubStats from "../components/GitHubStats";
 import SectionHeading from "../components/SectionHeading";
+import useSocials from "../hooks/useSocials";
 
 const reveal = {
   hidden: { opacity: 0, y: 18 },
@@ -37,6 +38,7 @@ const sectionReveal = {
 };
 
 export default function Home() {
+  const socials = useSocials();
   const [typedHeadline, setTypedHeadline] = useState("");
   const [isTyping, setIsTyping] = useState(true);
 
@@ -182,8 +184,8 @@ export default function Home() {
           title="Open-source"
           accent="footprint."
           aside={
-            <a
-              href="https://github.com/khotkarshubham"
+            socials.github && <a
+              href={socials.github}
               target="_blank"
               rel="noreferrer"
               className="text-link"

@@ -99,6 +99,7 @@ export const createBlog = async (req, res) => {
     );
 
     const tags = normalizeTags(req.body?.tags);
+    if (req.body?.status !== undefined && !["draft", "published"].includes(req.body.status)) return sendError(res, "Invalid publication status", 400);
 
     if (!title || !content) {
       return sendError(
@@ -146,7 +147,8 @@ export const createBlog = async (req, res) => {
       slug,
       content,
       image,
-      tags
+      tags,
+      status: req.body.status || "published"
     });
 
     await logAdminAction(req, {
@@ -222,10 +224,8 @@ export const updateBlog = async (req, res) => {
       );
     }
 
-    const slug =
-      req.body?.title !== undefined
-        ? buildSlug(title)
-        : existing.slug;
+    // Keep published links stable when an article title changes.
+    const slug = existing.slug || buildSlug(title);
 
     if (!slug) {
       return sendError(
@@ -261,6 +261,10 @@ export const updateBlog = async (req, res) => {
       content,
       tags
     };
+    if (req.body?.status !== undefined) {
+      if (!["draft", "published"].includes(req.body.status)) return sendError(res, "Invalid publication status", 400);
+      updates.status = req.body.status;
+    }
 
     /*
      * New image uploaded.
@@ -352,9 +356,14 @@ export const updateBlog = async (req, res) => {
 /**
  * Get all blogs
  */
+export const getAdminBlogs = async (req, res) => {
+  try { return sendSuccess(res, await Blog.find().sort({ updatedAt: -1 }).lean()); }
+  catch { return sendError(res, "Unable to load articles", 500); }
+};
+
 export const getBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find()
+    const blogs = await Blog.find({ status: { $ne: "draft" } })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -393,7 +402,8 @@ export const getBlogBySlug = async (req, res) => {
     }
 
     const blog = await Blog.findOne({
-      slug
+      slug,
+      status: { $ne: "draft" }
     }).lean();
 
     if (!blog) {

@@ -1,284 +1,413 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import API from "../../services/api";
-import { FaTrash, FaExternalLinkAlt } from "react-icons/fa";
+import { formatDateTime } from "../../utils/adminFormat";
 
-function AdminBlogs() {
-
+const empty = { title: "", content: "", tags: [], status: "draft" };
+export default function Blogs() {
   const [blogs, setBlogs] = useState([]);
-
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [content, setContent] = useState("");
-
-  /* ---------------- LOAD BLOGS ---------------- */
-
+  const [article, setArticle] = useState(empty);
+  const [tags, setTags] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const editor = useRef(null);
+  const canEdit = ["superadmin", "editor"].includes(
+    localStorage.getItem("admin_role"),
+  );
   const load = async () => {
-
-    const res = await API.get("/public/blogs");
-
-    setBlogs(Array.isArray(res.data) ? res.data : []);
-
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await API.get("/admin/blogs");
+      setBlogs(data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to load articles.");
+    } finally {
+      setLoading(false);
+    }
   };
-
   useEffect(() => {
     load();
   }, []);
-
-
-  /* ---------------- AUTO SLUG ---------------- */
-
   useEffect(() => {
-
-    if (!title) return;
-
-    const generated = title
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]+/g, "");
-
-    setSlug(generated);
-
-  }, [title]);
-
-
-  /* ---------------- CREATE BLOG ---------------- */
-
-  const create = async (e) => {
-
-    e.preventDefault();
-
-    try {
-
-      await API.post(
-        "/admin/blogs",
-        { title, slug, content },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
-          },
-        }
+    const warn = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    const warnNavigation = (e) => {
+      const link = e.target.closest?.("a[href]");
+      if (
+        dirty &&
+        link &&
+        link.target !== "_blank" &&
+        link.origin === window.location.origin &&
+        link.pathname !== window.location.pathname &&
+        !window.confirm("Leave this page and discard unsaved article changes?")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", warnNavigation, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", warnNavigation, true);
+    };
+  }, [dirty]);
+  const change = (key, value) => {
+    setArticle((a) => ({ ...a, [key]: value }));
+    setDirty(true);
+    setNotice("");
+  };
+  const select = (a) => {
+    if (dirty && !window.confirm("Discard unsaved changes to this article?"))
+      return;
+    setArticle(a);
+    setTags((a.tags || []).join(", "));
+    setDirty(false);
+    setPreview(false);
+    setNotice("");
+    setError("");
+  };
+  const insert = (before, after, placeholder) => {
+    const field = editor.current;
+    if (!field) return;
+    const start = field.selectionStart,
+      end = field.selectionEnd;
+    const text = article.content.slice(start, end) || placeholder;
+    change(
+      "content",
+      article.content.slice(0, start) +
+        before +
+        text +
+        after +
+        article.content.slice(end),
+    );
+    requestAnimationFrame(() => {
+      field.focus();
+      field.setSelectionRange(
+        start + before.length,
+        start + before.length + text.length,
       );
-
-      setTitle("");
-      setSlug("");
-      setContent("");
-
-      load();
-
-    } catch (err) {
-
-      console.error("Blog create failed", err);
-
-    }
-
+    });
   };
-
-
-  /* ---------------- DELETE BLOG ---------------- */
-
-  const remove = async (id) => {
-
+  const save = async (status) => {
+    if (
+      !article.title.trim() ||
+      !article.content.replace(/<[^>]*>/g, "").trim()
+    ) {
+      setError("Add a title and some article content before saving.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const payload = {
+      title: article.title,
+      content: article.content,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      status,
+    };
     try {
-
-      await API.delete(`/admin/blogs/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
-        },
-      });
-
-      load();
-
+      const { data } = article._id
+        ? await API.put(`/admin/blogs/${article._id}`, payload)
+        : await API.post("/admin/blogs", payload);
+      setArticle(data);
+      setDirty(false);
+      setTags((data.tags || []).join(", "));
+      setBlogs((items) => [
+        data,
+        ...items.filter((item) => item._id !== data._id),
+      ]);
+      setNotice(
+        status === "draft"
+          ? "Draft saved. Only administrators can see it."
+          : "Article published successfully.",
+      );
     } catch (err) {
-
-      console.error("Blog delete failed", err);
-
+      setError(
+        err.response?.data?.message ||
+          "Unable to save article. Your writing is still here.",
+      );
+    } finally {
+      setBusy(false);
     }
-
   };
-
-
+  const remove = async (a) => {
+    if (!window.confirm(`Permanently delete “${a.title}”?`)) return;
+    setBusy(true);
+    setError("");
+    try {
+      await API.delete(`/admin/blogs/${a._id}`);
+      setBlogs((items) => items.filter((b) => b._id !== a._id));
+      if (article._id === a._id) {
+        setArticle(empty);
+        setTags("");
+        setDirty(false);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to delete article.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const words = article.content
+    .replace(/<[^>]*>/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const slug = article.title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 200);
   return (
-
-    <div className="space-y-10">
-
-      {/* PAGE TITLE */}
-
-      <h2 className="text-3xl font-bold text-tech-accent">
-        Blogs Management
-      </h2>
-
-
-      {/* CREATE BLOG FORM */}
-
-      <form
-        onSubmit={create}
-        className="
-        space-y-5
-        p-6
-        bg-tech-card
-        border border-gray-700
-        rounded-xl
-        shadow-xl
-        "
-      >
-
-        {/* TITLE */}
-
-        <input
-          className="
-          border border-gray-700
-          bg-tech-bg
-          text-gray-200
-          p-3
-          w-full
-          rounded
-          focus:outline-none
-          focus:border-tech-accent
-          transition
-          "
-          placeholder="Blog Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-
-        {/* SLUG */}
-
-        <input
-          className="
-          border border-gray-700
-          bg-tech-bg
-          text-gray-400
-          p-3
-          w-full
-          rounded
-          "
-          value={slug}
-          readOnly
-        />
-
-        {/* CONTENT EDITOR */}
-
-        <textarea
-          className="
-          border border-gray-700
-          bg-tech-bg
-          text-gray-200
-          p-3
-          w-full
-          rounded
-          min-h-64
-          font-mono
-          text-sm
-          focus:outline-none
-          focus:border-tech-accent
-          transition
-          "
-          placeholder="Write blog HTML here"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-
-        {/* BUTTON */}
-
-        <button
-          className="
-          bg-tech-accent
-          hover:bg-cyan-500
-          text-black
-          font-semibold
-          px-6
-          py-3
-          rounded-lg
-          transition
-          w-full
-          "
-        >
-          Publish Blog
-        </button>
-
-      </form>
-
-
-
-      {/* BLOG LIST */}
-
-      <div>
-
-        <h3 className="text-xl font-bold mb-4 text-gray-200">
-          Existing Blogs
-        </h3>
-
-        <div className="space-y-4">
-
-          {blogs.map((b) => (
-
-            <div
-              key={b._id}
-              className="
-              flex
-              justify-between
-              items-center
-              bg-tech-card
-              border border-gray-700
-              p-5
-              rounded-xl
-              shadow-md
-              "
-            >
-
-              {/* BLOG INFO */}
-
-              <div>
-
-                <h4 className="text-tech-accent font-semibold">
-                  {b.title}
-                </h4>
-
-                <p className="text-gray-400 text-sm">
-                  /blog/{b.slug}
-                </p>
-
-              </div>
-
-
-              {/* ACTIONS */}
-
-              <div className="flex gap-4 items-center">
-
-                {/* VIEW BLOG */}
-
-                <a
-                  href={`/blog/${b.slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-tech-accent hover:text-cyan-400"
-                >
-                  <FaExternalLinkAlt />
-                </a>
-
-                {/* DELETE */}
-
-                <button
-                  onClick={() => remove(b._id)}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  <FaTrash />
-                </button>
-
-              </div>
-
-            </div>
-
-          ))}
-
+    <div className="admin-workspace">
+      <div className="admin-page-header">
+        <div>
+          <p className="admin-kicker">Editorial studio</p>
+          <h1>Your ideas, published.</h1>
+          <p className="admin-page-copy">
+            Shape a story, save a draft, and share it when it's ready.
+          </p>
         </div>
-
+        {canEdit && (
+          <button
+            className="cms-button"
+            disabled={busy}
+            onClick={() => select(empty)}
+          >
+            + New article
+          </button>
+        )}
       </div>
-
+      {error && (
+        <p className="admin-form-error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="admin-form-status" role="status">
+          {notice}
+        </p>
+      )}
+      <div className="cms-editor-layout">
+        <section className="cms-panel cms-writing">
+          <div className="cms-panel-heading">
+            <h2>{article._id ? "Edit article" : "New article"}</h2>
+            <span className="cms-badge">
+              {dirty
+                ? "Unsaved changes"
+                : article._id
+                  ? article.status || "published"
+                  : "Not saved"}
+            </span>
+          </div>
+          <fieldset disabled={busy || !canEdit} className="cms-editor-fields">
+            <label className="admin-field">
+              <span>Article title</span>
+              <input
+                className="admin-input cms-title-input"
+                placeholder="Give your story a title…"
+                maxLength={200}
+                value={article.title}
+                onChange={(e) => change("title", e.target.value)}
+              />
+            </label>
+            <p className="cms-muted">
+              Public address: /blog/
+              {article.slug || slug || "your-article-title"}
+            </p>
+            <label className="admin-field">
+              <span>
+                Tags <small>· separated by commas</small>
+              </span>
+              <input
+                className="admin-input"
+                value={tags}
+                placeholder="DevOps, Engineering, Tutorials"
+                onChange={(e) => {
+                  setTags(e.target.value);
+                  setDirty(true);
+                }}
+              />
+            </label>
+          </fieldset>
+          <div className="cms-toolbar">
+            <div className="cms-tabs">
+              <button aria-pressed={!preview} onClick={() => setPreview(false)}>
+                Write HTML
+              </button>
+              <button aria-pressed={preview} onClick={() => setPreview(true)}>
+                Preview
+              </button>
+            </div>
+            <span className="cms-muted">
+              {words} words · {Math.max(1, Math.ceil(words / 200))} min read
+            </span>
+          </div>
+          {preview ? (
+            <iframe
+              className="cms-blog-preview"
+              title="Article preview"
+              sandbox=""
+              srcDoc={`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{font:16px/1.8 system-ui;padding:24px;color:#172033;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#f1f5f9;padding:16px}a{color:#1264ff}blockquote{border-left:3px solid #1264ff;margin-left:0;padding-left:20px}</style></head><body>${article.content}</body></html>`}
+            />
+          ) : (
+            <>
+              <div
+                className="cms-format-toolbar"
+                aria-label="Insert formatting"
+              >
+                {[
+                  ["Heading", "<h2>", "</h2>", "Section heading"],
+                  ["Bold", "<strong>", "</strong>", "bold text"],
+                  ["Italic", "<em>", "</em>", "emphasis"],
+                  ["Paragraph", "<p>", "</p>\n", "Your paragraph"],
+                  ["List", "<ul>\n<li>", "</li>\n</ul>", "List item"],
+                  ["Quote", "<blockquote>", "</blockquote>", "Quote"],
+                  ["Code", "<pre><code>", "</code></pre>", "code here"],
+                  [
+                    "Link",
+                    '<a href="https://example.com">',
+                    "</a>",
+                    "Link text",
+                  ],
+                ].map(([label, before, after, text]) => (
+                  <button
+                    key={label}
+                    disabled={busy || !canEdit}
+                    onClick={() => insert(before, after, text)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                ref={editor}
+                aria-label="Article HTML content"
+                className="admin-input cms-content-editor"
+                disabled={busy || !canEdit}
+                maxLength={50000}
+                placeholder="Start with a paragraph, or use the formatting buttons above…"
+                value={article.content}
+                onChange={(e) => change("content", e.target.value)}
+              />
+              <p className="cms-muted">
+                Select text, then add formatting. Preview shows how your article
+                reads. Unsupported HTML is removed when saved.
+              </p>
+            </>
+          )}
+          {canEdit && (
+            <div className="cms-actions">
+              <button
+                className="cms-button"
+                disabled={busy}
+                onClick={() => save("draft")}
+              >
+                {article.status === "published"
+                  ? "Unpublish & save draft"
+                  : "Save draft"}
+              </button>
+              <button
+                className="cms-button is-primary"
+                disabled={busy}
+                onClick={() => save("published")}
+              >
+                {busy
+                  ? "Saving…"
+                  : article.status === "published"
+                    ? "Update published article"
+                    : "Publish article"}
+              </button>
+            </div>
+          )}
+        </section>
+        <aside className="cms-panel cms-article-library">
+          <div className="cms-panel-heading">
+            <h2>Article library</h2>
+            <span className="cms-badge">{blogs.length}</span>
+          </div>
+          <input
+            type="search"
+            aria-label="Search articles"
+            className="admin-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find an article…"
+          />
+          {loading ? (
+            <p role="status">Loading articles…</p>
+          ) : (
+            <>
+              {blogs
+                .filter((b) =>
+                  `${b.title} ${(b.tags || []).join(" ")}`
+                    .toLowerCase()
+                    .includes(search.toLowerCase()),
+                )
+                .map((b) => (
+                  <div className="cms-library-item" key={b._id}>
+                    <span className="cms-badge">{b.status || "published"}</span>
+                    <button
+                      className="cms-article-title"
+                      disabled={busy}
+                      onClick={() => select(b)}
+                    >
+                      {b.title}
+                    </button>
+                    <small className="cms-muted">
+                      Updated {formatDateTime(b.updatedAt || b.createdAt)}
+                    </small>
+                    <div className="cms-actions">
+                      {b.status !== "draft" && (
+                        <a
+                          className="cms-text-link"
+                          href={`/blog/${b.slug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View ↗
+                        </a>
+                      )}
+                      {canEdit && (
+                        <button
+                          className="cms-text-link is-danger"
+                          disabled={busy}
+                          onClick={() => remove(b)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              {!blogs.length && (
+                <div className="cms-empty">Your first article starts here.</div>
+              )}
+              <button className="cms-button" disabled={busy} onClick={load}>
+                Refresh library
+              </button>
+            </>
+          )}
+        </aside>
+      </div>
     </div>
-
   );
-
 }
-
-export default AdminBlogs;

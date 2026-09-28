@@ -11,25 +11,13 @@ import { logAdminAction } from "../utils/auditLogger.js";
 const buildUploadPath = (filename, folder) =>
   `/uploads/${folder}/${filename}`;
 
-const validateHttpUrl = (value) => {
-  if (!value) return "";
+import { validateHttpUrl, validateWhatsapp } from "../utils/profileLinks.js";
+const validateEmail = (value) => { const email = String(value ?? "").trim(); return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null; };
 
-  try {
-    const url = new URL(String(value).trim());
-    if (!["http:", "https:"].includes(url.protocol)) return "";
-    return url.toString();
-  } catch {
-    return "";
-  }
-};
-
-const normalizeWhatsapp = (value) => {
-  if (!value) return "";
-  const trimmed = String(value).trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    return validateHttpUrl(trimmed);
-  }
-  return trimmed.replace(/[^\d+]/g, "").slice(0, 20);
+const validationError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
 };
 
 const isManagedUpload = (filePath) =>
@@ -57,19 +45,43 @@ const removeProfileFile = async (filePath) => {
   }
 };
 
+/**
+ * Remove newly uploaded files when the update fails.
+ */
+const cleanupUploadedFiles = async (files) => {
+  for (const uploaded of files) {
+    try {
+      await removeUploadFile(uploaded.path);
+    } catch (cleanupError) {
+      console.error(
+        "Failed to clean up uploaded profile file:",
+        cleanupError?.message || cleanupError
+      );
+    }
+  }
+};
+
 export const getProfile = async (req, res) => {
   try {
     const profile = await Profile.findOne().lean();
 
     if (!profile) {
-      return sendError(res, "Profile has not been configured", 404);
+      return sendError(
+        res,
+        "Profile has not been configured",
+        404
+      );
     }
 
     return sendSuccess(res, profile);
   } catch (error) {
     console.error("Get profile error:", error);
 
-    return sendError(res, "Unable to load profile", 500);
+    return sendError(
+      res,
+      "Unable to load profile",
+      500
+    );
   }
 };
 
@@ -77,9 +89,16 @@ export const updateProfile = async (req, res) => {
   const uploadedFiles = [];
 
   try {
+    /*
+     * Only update fields that were actually submitted.
+     *
+     * This is important because an omitted field should NOT
+     * overwrite the existing database value.
+     */
+
     const name =
       req.body?.name !== undefined
-        ? sanitizeText(req.body.name, 150)
+        ? sanitizeText(req.body.name, 100)
         : undefined;
 
     const title =
@@ -91,25 +110,32 @@ export const updateProfile = async (req, res) => {
       req.body?.github !== undefined
         ? validateHttpUrl(req.body.github)
         : undefined;
+
     const linkedin =
       req.body?.linkedin !== undefined
         ? validateHttpUrl(req.body.linkedin)
         : undefined;
+
     const instagram =
       req.body?.instagram !== undefined
         ? validateHttpUrl(req.body.instagram)
         : undefined;
+
     const whatsapp =
       req.body?.whatsapp !== undefined
-        ? normalizeWhatsapp(req.body.whatsapp)
+        ? validateWhatsapp(req.body.whatsapp)
         : undefined;
+
     const email =
       req.body?.email !== undefined
-        ? sanitizeText(req.body.email, 200)
+        ? validateEmail(req.body.email)
         : undefined;
 
     let profile = await Profile.findOne();
 
+    /*
+     * Create the profile document if it does not exist.
+     */
     if (!profile) {
       profile = new Profile();
     }
@@ -120,11 +146,16 @@ export const updateProfile = async (req, res) => {
     let image;
     let resume;
 
+    /*
+     * Profile image upload.
+     */
     if (req.files?.image?.[0]) {
       const uploaded = req.files.image[0];
 
       uploadedFiles.push({
-        path: getUploadPath(`profile/${uploaded.filename}`)
+        path: getUploadPath(
+          `profile/${uploaded.filename}`
+        )
       });
 
       image = buildUploadPath(
@@ -133,11 +164,16 @@ export const updateProfile = async (req, res) => {
       );
     }
 
+    /*
+     * Resume upload.
+     */
     if (req.files?.resume?.[0]) {
       const uploaded = req.files.resume[0];
 
       uploadedFiles.push({
-        path: getUploadPath(`resume/${uploaded.filename}`)
+        path: getUploadPath(
+          `resume/${uploaded.filename}`
+        )
       });
 
       resume = buildUploadPath(
@@ -146,37 +182,105 @@ export const updateProfile = async (req, res) => {
       );
     }
 
-    if (name !== undefined) {
-      if (!name) {
-        return sendError(res, "Name cannot be empty", 400);
-      }
+    /*
+     * -----------------------------
+     * FIELD VALIDATION
+     * -----------------------------
+     */
 
+    if (name !== undefined && !name) {
+      throw validationError(
+        "Name cannot be empty"
+      );
+    }
+
+    if (title !== undefined && !title) {
+      throw validationError(
+        "Title cannot be empty"
+      );
+    }
+
+    if (email === null) {
+      throw validationError(
+        "Email must be a valid email address"
+      );
+    }
+
+    if (
+      github !== undefined &&
+      github === "" &&
+      String(req.body?.github ?? "").trim()
+    ) {
+      throw validationError(
+        "GitHub must be a valid http(s) URL"
+      );
+    }
+
+    if (
+      linkedin !== undefined &&
+      linkedin === "" &&
+      String(req.body?.linkedin ?? "").trim()
+    ) {
+      throw validationError(
+        "LinkedIn must be a valid http(s) URL"
+      );
+    }
+
+    if (
+      instagram !== undefined &&
+      instagram === "" &&
+      String(req.body?.instagram ?? "").trim()
+    ) {
+      throw validationError(
+        "Instagram must be a valid http(s) URL"
+      );
+    }
+
+    if (whatsapp === null) {
+      throw validationError(
+        "WhatsApp must be a valid phone number or WhatsApp URL"
+      );
+    }
+
+    /*
+     * -----------------------------
+     * UPDATE ONLY SUBMITTED FIELDS
+     * -----------------------------
+     */
+
+    if (name !== undefined) {
       profile.name = name;
     }
 
     if (title !== undefined) {
-      if (!title) {
-        return sendError(res, "Title cannot be empty", 400);
-      }
-
       profile.title = title;
     }
 
-    if (github !== undefined) profile.github = github;
-    if (linkedin !== undefined) profile.linkedin = linkedin;
-    if (instagram !== undefined) profile.instagram = instagram;
-    if (whatsapp !== undefined) profile.whatsapp = whatsapp;
-    if (email !== undefined) profile.email = email;
+    if (github !== undefined) {
+      profile.github = github;
+    }
 
-    if (req.body?.github && github === "") {
-      return sendError(res, "GitHub must be a valid http(s) URL", 400);
+    if (linkedin !== undefined) {
+      profile.linkedin = linkedin;
     }
-    if (req.body?.linkedin && linkedin === "") {
-      return sendError(res, "LinkedIn must be a valid http(s) URL", 400);
+
+    if (instagram !== undefined) {
+      profile.instagram = instagram;
     }
-    if (req.body?.instagram && instagram === "") {
-      return sendError(res, "Instagram must be a valid http(s) URL", 400);
+
+    if (whatsapp !== undefined) {
+      profile.whatsapp = whatsapp;
     }
+
+    if (email !== undefined) {
+      profile.email = email;
+    }
+
+    /*
+     * -----------------------------
+     * UPLOADED FILES
+     * -----------------------------
+     */
 
     if (image) {
       profile.image = image;
@@ -186,9 +290,18 @@ export const updateProfile = async (req, res) => {
       profile.resume = resume;
     }
 
+    /*
+     * -----------------------------
+     * DATABASE UPDATE
+     * -----------------------------
+     */
+
     await profile.save();
 
-    // Delete replaced files only after the database update succeeds.
+    /*
+     * Delete replaced profile image only AFTER
+     * successful database save.
+     */
     if (
       image &&
       oldImage &&
@@ -197,32 +310,52 @@ export const updateProfile = async (req, res) => {
       await removeProfileFile(oldImage);
     }
 
-    if (resume && oldResume) {
+    /*
+     * Delete replaced resume only AFTER
+     * successful database save.
+     */
+    if (
+      resume &&
+      oldResume
+    ) {
       await removeProfileFile(oldResume);
     }
 
+    /*
+     * Audit log.
+     */
     await logAdminAction(req, {
       action: "UPDATE_PROFILE",
       entity: "PROFILE",
       entityId: profile._id.toString()
     });
 
-    return sendSuccess(res, profile);
+    return sendSuccess(
+      res,
+      profile
+    );
   } catch (error) {
-    console.error("Update profile error:", error);
+    console.error(
+      "Update profile error:",
+      error
+    );
 
-    // Clean up newly uploaded files if the database update fails.
-    for (const uploaded of uploadedFiles) {
-      try {
-        await removeUploadFile(uploaded.path);
-      } catch (cleanupError) {
-        console.error(
-          "Failed to clean up uploaded profile file:",
-          cleanupError?.message || cleanupError
-        );
-      }
-    }
+    /*
+     * If DB save/validation fails after files were
+     * uploaded, remove the newly uploaded files.
+     */
+    await cleanupUploadedFiles(
+      uploadedFiles
+    );
 
-    return sendError(res, "Unable to update profile", 500);
+    return sendError(
+      res,
+      error?.statusCode === 400 || error?.name === "ValidationError"
+        ? error.message
+        : "Unable to update profile",
+      error?.statusCode === 400 || error?.name === "ValidationError"
+        ? 400
+        : 500
+    );
   }
 };

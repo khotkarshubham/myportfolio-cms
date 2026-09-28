@@ -14,7 +14,7 @@ const CHANNELS = [
   { key: "github", label: "GitHub", hint: "Code and open source", icon: FaGithub },
   { key: "linkedin", label: "LinkedIn", hint: "Career and professional work", icon: FaLinkedin },
   { key: "instagram", label: "Instagram", hint: "Behind the work", icon: FaInstagram },
-  { key: "whatsapp", label: "WhatsApp", hint: "+91 92707 02964", icon: FaWhatsapp },
+  { key: "whatsapp", label: "WhatsApp", hint: "Start a conversation", icon: FaWhatsapp },
 ];
 
 export default function Contact() {

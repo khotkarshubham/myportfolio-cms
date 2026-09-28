@@ -16,6 +16,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import ThemeToggle from "./ThemeToggle";
+import { setToken } from "../services/api";
 
 export default function AdminLayout({ children }) {
   const location = useLocation();
@@ -75,6 +76,7 @@ export default function AdminLayout({ children }) {
   const closeMobileMenu = () => setMobileOpen(false);
 
   const logout = () => {
+    setToken(null);
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_role");
     localStorage.removeItem("admin_email");
@@ -158,6 +160,8 @@ export default function AdminLayout({ children }) {
       <aside
         className={`admin-mobile-drawer ${mobileOpen ? "is-open" : ""}`}
         aria-label="Mobile admin navigation"
+        aria-hidden={!mobileOpen}
+        inert={mobileOpen ? undefined : ""}
       >
         <div className="admin-sidebar-heading">
           <h2>Admin Panel</h2>

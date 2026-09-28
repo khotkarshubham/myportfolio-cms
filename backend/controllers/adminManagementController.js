@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { sanitizeText } from "../utils/sanitizeHtml.js";
 import { logAdminAction } from "../utils/auditLogger.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
+import { validPassword, PASSWORD_RULE } from "../utils/passwordPolicy.js";
 
 const VALID_ROLES = ["superadmin", "editor", "viewer"];
 
@@ -21,7 +22,7 @@ export const getAdmins = async (req, res) => {
     }
 
     const admins = await Admin.find()
-      .select("-password")
+      .select("name email role isActive createdAt updatedAt lastLoginAt passwordChangedAt invitedBy")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -43,14 +44,13 @@ export const createAdmin = async (req, res) => {
 
     const password = String(req.body.password || "");
 
-    const role = VALID_ROLES.includes(req.body.role)
-      ? req.body.role
-      : "viewer";
+    const role = req.body.role ?? "viewer";
+    if (!VALID_ROLES.includes(role)) return sendError(res, "Choose a valid role", 400);
 
-    if (!email || password.length < 12) {
+    if (!email || !validPassword(req.body.password)) {
       return sendError(
         res,
-        "Valid email and a 12+ character password are required",
+        `A valid email is required. ${PASSWORD_RULE}`,
         400
       );
     }
@@ -59,14 +59,14 @@ export const createAdmin = async (req, res) => {
     // This intentionally avoids accepting obviously malformed addresses.
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailPattern.test(email)) {
+    if (!emailPattern.test(email) || email.length > 254) {
       return sendError(res, "A valid email address is required", 400);
     }
 
     const exists = await Admin.findOne({ email });
 
     if (exists) {
-      return sendError(res, "Admin already exists", 400);
+      return sendError(res, "An account with this email already exists", 409);
     }
 
     const hashed = await bcrypt.hash(password, 12);
@@ -74,6 +74,7 @@ export const createAdmin = async (req, res) => {
     const admin = await Admin.create({
       email,
       password: hashed,
+      name: sanitizeText(req.body.name, 100) || "Admin",
       role,
       isActive: true,
       invitedBy: req.user.id,
@@ -81,14 +82,18 @@ export const createAdmin = async (req, res) => {
 
     await logAdminAction(req, {
       action: "ADMIN_CREATE",
-      entity: email,
-      email,
+      entity: "ADMIN",
+      entityId: admin._id,
     });
 
     return sendSuccess(
       res,
       {
+        _id: admin._id,
         id: admin._id,
+        name: admin.name,
+        createdAt: admin.createdAt,
+        lastLoginAt: admin.lastLoginAt,
         email: admin.email,
         role: admin.role,
         isActive: admin.isActive,
@@ -96,6 +101,7 @@ export const createAdmin = async (req, res) => {
       201
     );
   } catch (err) {
+    if (err.code === 11000) return sendError(res, "An account with this email already exists", 409);
     return sendError(res, "Unable to create admin", 500);
   }
 };
@@ -106,6 +112,10 @@ export const updateAdmin = async (req, res) => {
       return sendError(res, "Access denied", 403);
     }
 
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) return sendError(res, "Invalid account ID", 400);
+    if (req.body.role !== undefined && !VALID_ROLES.includes(req.body.role)) return sendError(res, "Choose a valid role", 400);
+    if (req.body.isActive !== undefined && typeof req.body.isActive !== "boolean") return sendError(res, "Account status must be true or false", 400);
+    if (req.body.role === undefined && req.body.isActive === undefined) return sendError(res, "Provide a role or account status", 400);
     const targetAdmin = await Admin.findById(req.params.id);
 
     if (!targetAdmin) {
@@ -200,23 +210,24 @@ export const updateAdmin = async (req, res) => {
       return sendError(res, "Cannot modify superadmin", 403);
     }
 
-    const updated = await Admin.findByIdAndUpdate(
-      req.params.id,
-      updates,
+    const changed = Object.entries(updates).some(([key, value]) => targetAdmin[key] !== value);
+    const updated = await Admin.findOneAndUpdate(
+      { _id: targetAdmin._id, role: targetAdmin.role, isActive: targetAdmin.isActive },
+      { $set: updates, ...(changed ? { $inc: { sessionVersion: 1 } } : {}) },
       {
         new: true,
         runValidators: true,
       }
-    ).select("-password");
+    ).select("name email role isActive createdAt updatedAt lastLoginAt passwordChangedAt");
 
     if (!updated) {
-      return sendError(res, "Admin not found", 404);
+      return sendError(res, "Account changed. Refresh and retry.", 409);
     }
 
     await logAdminAction(req, {
       action: "ADMIN_UPDATE",
-      entity: updated.email,
-      email: updated.email,
+      entity: "ADMIN",
+      entityId: updated._id,
     });
 
     return sendSuccess(res, updated);
@@ -231,6 +242,7 @@ export const deleteAdmin = async (req, res) => {
       return sendError(res, "Access denied", 403);
     }
 
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) return sendError(res, "Invalid account ID", 400);
     const targetAdmin = await Admin.findById(req.params.id);
 
     if (!targetAdmin) {
@@ -249,12 +261,13 @@ export const deleteAdmin = async (req, res) => {
       return sendError(res, "Cannot delete superadmin", 403);
     }
 
-    await Admin.findByIdAndDelete(req.params.id);
+    const deleted = await Admin.findOneAndDelete({ _id: targetAdmin._id, role: { $ne: "superadmin" } });
+    if (!deleted) return sendError(res, "Account changed. Refresh and retry.", 409);
 
     await logAdminAction(req, {
       action: "ADMIN_DELETE",
-      entity: targetAdmin.email,
-      email: targetAdmin.email,
+      entity: "ADMIN",
+      entityId: targetAdmin._id,
     });
 
     return sendSuccess(res, {

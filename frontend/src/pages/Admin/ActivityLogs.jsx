@@ -1,351 +1,254 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import API from "../../services/api";
+import { formatDateTime, humanize } from "../../utils/adminFormat";
 
 export default function ActivityLogs() {
-  const [logs, setLogs] = useState([]);
+  const [result, setResult] = useState({ logs: [], total: 0, pageSize: 25 });
   const [search, setSearch] = useState("");
-  const [view, setView] = useState("timeline");
+  const [category, setCategory] = useState("");
   const [date, setDate] = useState("");
+  const [page, setPage] = useState(1);
+  const [view, setView] = useState("timeline");
+  const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  /* ---------------- LOAD ---------------- */
-
   useEffect(() => {
-    let mounted = true;
-
-    const loadLogs = async () => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    const timer = setTimeout(async () => {
       try {
-        setLoading(true);
-        setError("");
-
-        const res = await API.get("/admin/logs");
-
-        if (!mounted) return;
-
-        const data = Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res)
-            ? res
-            : [];
-
-        setLogs(data);
+        const params = { page, search, category };
+        if (date) {
+          const from = new Date(`${date}T00:00:00`);
+          const to = new Date(from);
+          to.setDate(to.getDate() + 1);
+          params.from = from.toISOString();
+          params.to = to.toISOString();
+        }
+        const { data } = await API.get("/admin/logs", {
+          params,
+          signal: controller.signal,
+        });
+        setResult(data);
       } catch (err) {
-        console.error("Failed to load activity logs:", err);
-
-        if (mounted) {
+        if (!controller.signal.aborted)
           setError(
-            err?.response?.data?.message ||
-              "Unable to load activity logs. Please try again."
+            err.response?.data?.message ||
+              "Unable to load activity. Please retry.",
           );
-          setLogs([]);
-        }
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
-    };
-
-    loadLogs();
-
+    }, 250);
     return () => {
-      mounted = false;
+      clearTimeout(timer);
+      controller.abort();
     };
-  }, []);
-
-  /* ---------------- HELPERS ---------------- */
-
-  const getAdminEmail = (log) => {
-    return (
-      log?.adminId?.email ||
-      log?.email ||
-      "Unknown admin"
-    );
-  };
-
-  const getAction = (log) => {
-    return typeof log?.action === "string" ? log.action : "Unknown action";
-  };
-
-  const getEntity = (log) => {
-    return typeof log?.entity === "string" && log.entity.trim()
-      ? log.entity
-      : "—";
-  };
-
-  const getCreatedAt = (log) => {
-    const value = log?.createdAt;
-    const dateValue = value ? new Date(value) : null;
-
-    return dateValue && !Number.isNaN(dateValue.getTime())
-      ? dateValue
-      : null;
-  };
-
-  const formatDateTime = (log) => {
-    const dateValue = getCreatedAt(log);
-
-    return dateValue
-      ? dateValue.toLocaleString()
-      : "Unknown time";
-  };
-
-  /* ---------------- FILTER ---------------- */
-
-  const filtered = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return logs.filter((log) => {
-      const action = getAction(log).toLowerCase();
-      const entity = getEntity(log).toLowerCase();
-      const adminEmail = getAdminEmail(log).toLowerCase();
-
-      const matchesSearch =
-        !normalizedSearch ||
-        action.includes(normalizedSearch) ||
-        entity.includes(normalizedSearch) ||
-        adminEmail.includes(normalizedSearch);
-
-      const createdAt = getCreatedAt(log);
-
-      const matchesDate =
-        !date ||
-        (createdAt &&
-          createdAt.toISOString().startsWith(date));
-
-      return matchesSearch && matchesDate;
-    });
-  }, [logs, search, date]);
-
-  /* ---------------- LOADING ---------------- */
-
-  if (loading) {
-    return (
-      <div
-        className="text-center text-gray-400 mt-10 animate-pulse"
-        role="status"
-        aria-live="polite"
-      >
-        Loading logs...
-      </div>
-    );
-  }
-
-  /* ---------------- ERROR ---------------- */
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-2xl sm:text-3xl text-tech-accent font-bold">
-          Activity Logs 📜
-        </h2>
-
-        <div
-          className="bg-tech-card border border-red-500/40 rounded-xl p-5 text-red-300"
-          role="alert"
-        >
-          {error}
+  }, [page, search, category, date, refresh]);
+  const actor = (log) =>
+    log.email || log.adminId?.email || "Unknown administrator";
+  const details = (log) => (
+    <details className="cms-log-details">
+      <summary>Event details</summary>
+      <dl>
+        <dt>Event ID</dt>
+        <dd>{log._id}</dd>
+        <dt>Resource ID</dt>
+        <dd>{log.entityId || "Not recorded"}</dd>
+        <dt>IP address</dt>
+        <dd>{log.ip || "Not recorded"}</dd>
+        <dt>Browser</dt>
+        <dd>{log.userAgent || "Not recorded"}</dd>
+      </dl>
+    </details>
+  );
+  const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
+  return (
+    <div className="admin-workspace">
+      <div className="admin-page-header">
+        <div>
+          <p className="admin-kicker">Administration / Audit trail</p>
+          <h1>Activity log</h1>
+          <p className="admin-page-copy">
+            A clear record of who changed what, and when.
+          </p>
         </div>
-
         <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 rounded bg-tech-accent text-black font-semibold hover:opacity-90 transition"
+          className="cms-button"
+          disabled={loading}
+          onClick={() => setRefresh((n) => n + 1)}
         >
-          Retry
+          Refresh activity
         </button>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl sm:text-3xl text-tech-accent font-bold">
-        Activity Logs 📜
-      </h2>
-
-      {/* ---------------- FILTER BAR ---------------- */}
-
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
-          {/* SEARCH */}
-
+      <div className="cms-panel cms-log-filters">
+        <label className="admin-field">
+          <span>Search history</span>
           <input
+            className="admin-input"
             type="search"
-            placeholder="Search actions, entities, or admins..."
-            aria-label="Search activity logs"
-            className="w-full sm:max-w-md p-3 bg-tech-card rounded border border-transparent focus:border-tech-accent focus:outline-none"
+            placeholder="Admin, action, resource or IP…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
-
-          {/* DATE FILTER */}
-
+        </label>
+        <label className="admin-field">
+          <span>Activity type</span>
+          <select
+            className="admin-input"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All activities</option>
+            <option value="create">Created content</option>
+            <option value="update">Updated content</option>
+            <option value="delete">Deleted content</option>
+            <option value="login">Account & sign in</option>
+            <option value="inbox">Inbox activity</option>
+          </select>
+        </label>
+        <label className="admin-field">
+          <span>Date · your local time</span>
           <input
+            className="admin-input"
             type="date"
-            aria-label="Filter activity logs by date"
-            className="p-3 bg-tech-card rounded border border-transparent focus:border-tech-accent focus:outline-none"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => {
+              setDate(e.target.value);
+              setPage(1);
+            }}
           />
-
-          {search || date ? (
+        </label>
+        <button
+          className="cms-button"
+          onClick={() => {
+            setSearch("");
+            setDate("");
+            setCategory("");
+            setPage(1);
+          }}
+        >
+          Reset filters
+        </button>
+      </div>
+      <div className="cms-toolbar">
+        <p className="cms-muted">
+          {loading
+            ? "Loading history…"
+            : `${result.total} matching events · newest first`}
+        </p>
+        <div className="cms-tabs">
+          {["timeline", "table"].map((mode) => (
             <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                setDate("");
-              }}
-              className="px-4 py-2 rounded bg-gray-700 text-gray-200 hover:bg-gray-600 transition"
+              key={mode}
+              aria-pressed={view === mode}
+              onClick={() => setView(mode)}
             >
-              Clear
+              {humanize(mode)}
             </button>
-          ) : null}
-        </div>
-
-        {/* VIEW TOGGLE */}
-
-        <div className="flex gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setView("table")}
-            aria-pressed={view === "table"}
-            className={`px-4 py-2 rounded transition ${
-              view === "table"
-                ? "bg-tech-accent text-black"
-                : "bg-tech-card text-gray-400 hover:text-white"
-            }`}
-          >
-            Table
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setView("timeline")}
-            aria-pressed={view === "timeline"}
-            className={`px-4 py-2 rounded transition ${
-              view === "timeline"
-                ? "bg-tech-accent text-black"
-                : "bg-tech-card text-gray-400 hover:text-white"
-            }`}
-          >
-            Timeline
-          </button>
+          ))}
         </div>
       </div>
-
-      {/* RESULT COUNT */}
-
-      {filtered.length > 0 && (
-        <p className="text-sm text-gray-500">
-          Showing {filtered.length} of {logs.length} log
-          {logs.length === 1 ? "" : "s"}
-        </p>
-      )}
-
-      {/* ---------------- EMPTY STATE ---------------- */}
-
-      {filtered.length === 0 && (
-        <div className="text-center text-gray-400 py-10 bg-tech-card rounded-xl">
-          {logs.length === 0
-            ? "No activity logs found."
-            : "No logs match your filters."}
+      {error ? (
+        <div className="cms-panel">
+          <p className="admin-form-error" role="alert">
+            {error}
+          </p>
+          <button
+            className="cms-button"
+            onClick={() => setRefresh((n) => n + 1)}
+          >
+            Retry
+          </button>
         </div>
-      )}
-
-      {/* ================= TABLE VIEW ================= */}
-
-      {view === "table" && filtered.length > 0 && (
-        <div className="bg-tech-card rounded-xl overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800 text-gray-300">
+      ) : loading ? (
+        <div className="cms-empty" role="status">
+          Loading activity…
+        </div>
+      ) : !result.logs.length ? (
+        <div className="cms-panel cms-empty">
+          <h2>No activity found</h2>
+          <p>Try another date or reset the filters.</p>
+        </div>
+      ) : view === "timeline" ? (
+        <div className="cms-timeline">
+          {result.logs.map((log) => (
+            <article className="cms-log-event" key={log._id}>
+              <span
+                className={`cms-event-dot ${/DELETE|FAIL/.test(log.action) ? "is-warning" : ""}`}
+              />
+              <div className="cms-panel">
+                <div className="cms-panel-heading">
+                  <span className="cms-badge">
+                    {humanize(log.entity || "Account")}
+                  </span>
+                  <time dateTime={log.createdAt}>
+                    {formatDateTime(log.createdAt)}
+                  </time>
+                </div>
+                <h2>{humanize(log.action)}</h2>
+                <p className="cms-muted">{actor(log)}</p>
+                {details(log)}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="cms-panel cms-table-wrap">
+          <table className="cms-table">
+            <thead>
               <tr>
-                <th className="p-3 text-left">Admin</th>
-                <th className="p-3 text-left">Action</th>
-                <th className="p-3 text-left">Entity</th>
-                <th className="p-3 text-left">Time</th>
+                <th>Activity</th>
+                <th>Administrator</th>
+                <th>Resource</th>
+                <th>Date & time</th>
+                <th>Details</th>
               </tr>
             </thead>
-
             <tbody>
-              {filtered.map((log, index) => (
-                <tr
-                  key={log?._id || `${log?.createdAt || "log"}-${index}`}
-                  className="border-t border-gray-700"
-                >
-                  <td className="p-3">
-                    {getAdminEmail(log)}
+              {result.logs.map((log) => (
+                <tr key={log._id}>
+                  <td>{humanize(log.action)}</td>
+                  <td>{actor(log)}</td>
+                  <td>{humanize(log.entity || "Account")}</td>
+                  <td>
+                    <time dateTime={log.createdAt}>
+                      {formatDateTime(log.createdAt)}
+                    </time>
                   </td>
-
-                  <td className="p-3 text-tech-accent">
-                    {getAction(log)}
-                  </td>
-
-                  <td className="p-3">
-                    {getEntity(log)}
-                  </td>
-
-                  <td className="p-3 text-gray-400 whitespace-nowrap">
-                    {formatDateTime(log)}
-                  </td>
+                  <td>{details(log)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      {/* ================= TIMELINE VIEW ================= */}
-
-      {view === "timeline" && filtered.length > 0 && (
-        <div className="relative border-l border-gray-700 pl-4 space-y-6">
-          {filtered.map((log, index) => (
-            <div
-              key={log?._id || `${log?.createdAt || "log"}-${index}`}
-              className="relative"
-            >
-              {/* DOT */}
-
-              <div
-                className="
-                  absolute -left-[9px] top-2
-                  w-3 h-3 bg-tech-accent rounded-full
-                  shadow
-                "
-                aria-hidden="true"
-              />
-
-              {/* CARD */}
-
-              <div
-                className="
-                  bg-tech-card p-4 rounded-xl
-                  border border-gray-700
-                  hover:border-tech-accent
-                  transition
-                "
-              >
-                <p className="text-sm sm:text-base">
-                  <b>{getAdminEmail(log)}</b>{" "}
-                  performed{" "}
-                  <span className="text-tech-accent font-semibold">
-                    {getAction(log)}
-                  </span>
-                </p>
-
-                <p className="text-xs text-gray-400 mt-1">
-                  {getEntity(log)}
-                </p>
-
-                <p className="text-xs text-gray-500 mt-2">
-                  {formatDateTime(log)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="cms-pagination">
+        <button
+          className="cms-button"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          ← Previous
+        </button>
+        <span>
+          Page {page} of {pages}
+        </span>
+        <button
+          className="cms-button"
+          disabled={loading || page >= pages}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Next →
+        </button>
+      </div>
     </div>
   );
 }

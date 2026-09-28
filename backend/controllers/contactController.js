@@ -91,6 +91,20 @@ export const getContacts = async (req, res) => {
   }
 };
 
+export const updateContact = async (req, res) => {
+  try {
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) return sendError(res, "Invalid message ID", 400);
+    const updates = {};
+    if (typeof req.body.read === "boolean") updates.readAt = req.body.read ? new Date() : null;
+    if (typeof req.body.archived === "boolean") updates.archived = req.body.archived;
+    if (!Object.keys(updates).length) return sendError(res, "Provide a read or archived status", 400);
+    const contact = await Contact.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+    if (!contact) return sendError(res, "Message not found", 404);
+    await logAdminAction(req, { action: typeof req.body.archived === "boolean" ? (req.body.archived ? "CONTACT_ARCHIVE" : "CONTACT_RESTORE") : (req.body.read ? "CONTACT_READ" : "CONTACT_UNREAD"), entity: "CONTACT", entityId: contact._id });
+    return sendSuccess(res, contact);
+  } catch { return sendError(res, "Unable to update message", 500); }
+};
+
 // DELETE MESSAGE
 export const deleteContact = async (req, res) => {
   try {

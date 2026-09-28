@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const blogSchema = new mongoose.Schema(
   {
+    status: { type: String, enum: ["draft", "published"], default: "published" },
     title: {
       type: String,
       required: true,

@@ -1,3 +1,4 @@
+import { analyticsWindow, fillAnalyticsDays, normalizePublicPage } from "../utils/analyticsWindow.js";
 import Analytics from "../models/Analytics.js";
 import geoip from "geoip-lite";
 import crypto from "crypto";
@@ -40,41 +41,6 @@ const hashIp = (ip) =>
  * This protects the analytics endpoint even if someone bypasses
  * the frontend and sends requests directly to the API.
  */
-const normalizePublicPage = (value) => {
-  if (typeof value !== "string") {
-    return "/";
-  }
-
-  const page = value.trim();
-
-  if (!page || !page.startsWith("/")) {
-    return "/";
-  }
-
-  /*
-   * Prevent protocol-relative URLs and malformed paths.
-   */
-  if (
-    page.startsWith("//") ||
-    page.includes("\\") ||
-    page.includes("\0")
-  ) {
-    return "/";
-  }
-
-  /*
-   * Never count CMS/admin routes as public traffic.
-   */
-  if (
-    page === "/admin" ||
-    page.startsWith("/admin/")
-  ) {
-    return null;
-  }
-
-  return page.slice(0, 200);
-};
-
 const getGeoCountry = (ip) => {
   if (!ip || ip === "unknown") {
     return "Unknown";
@@ -146,134 +112,45 @@ export const trackResume = async (req, res) => {
 
 /* ---------------- MAIN ANALYTICS ---------------- */
 
+
 export const getAnalytics = async (req, res) => {
+  const range = String(req.query?.range || 'all');
+  let window;
+  try { window = analyticsWindow(range); }
+  catch (error) { return res.status(400).json({ message: error.message }); }
   try {
-    /*
-     * Run independent database operations concurrently.
-     * This reduces the total time required to load the dashboard.
-     */
-    const [
-      totalVisits,
-      uniqueVisitors,
-      resumeClicks,
-      chart,
-      countries,
-      topPages
-    ] = await Promise.all([
-      /* Total public visits */
-      Analytics.countDocuments({
-        type: "visit"
-      }),
-
-      /*
-       * Unique visitors should be calculated from visits only.
-       * Resume clicks should not create additional visitors.
-       */
-      Analytics.distinct("ip", {
-        type: "visit"
-      }),
-
-      /* Resume downloads/clicks */
-      Analytics.countDocuments({
-        type: "resume"
-      }),
-
-      /* Last 7 days */
+    const { start, end, previousStart, previousEnd, days } = window;
+    const publicVisits = { type: 'visit', page: { $not: /^\/admin(?:\/|$)/i } };
+    const currentDates = range === 'all' ? {} : { createdAt: { $gte: start, $lte: end } };
+    const visits = { ...publicVisits, ...currentDates };
+    const uniqueCount = match => Analytics.aggregate([{ $match: match }, { $group: { _id: '$ip' } }, { $count: 'count' }]);
+    const ranking = field => Analytics.aggregate([{ $match: visits }, { $group: { _id: { $ifNull: [`$${field}`, 'Unknown'] }, count: { $sum: 1 } } }, { $sort: { count: -1, _id: 1 } }, { $limit: 10 }]);
+    const previous = { ...publicVisits, createdAt: { $gte: previousStart, $lte: previousEnd } };
+    const [totalVisits, unique, resumeClicks, rows, countries, topPages, active, comparison] = await Promise.all([
+      Analytics.countDocuments(visits),
+      uniqueCount(visits),
+      Analytics.countDocuments({ type: 'resume', ...currentDates }),
       Analytics.aggregate([
-        {
-          $match: {
-            type: "visit",
-            createdAt: {
-              $gte: new Date(
-                Date.now() - 7 * 24 * 60 * 60 * 1000
-              )
-            }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: "%d-%m",
-                date: "$createdAt"
-              }
-            },
-            visits: {
-              $sum: 1
-            }
-          }
-        },
-        {
-          $sort: {
-            _id: 1
-          }
-        }
+        { $match: { createdAt: { $gte: start, $lte: end }, $or: [publicVisits, { type: 'resume' }] } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' } }, visits: { $sum: { $cond: [{ $eq: ['$type', 'visit'] }, 1, 0] } }, resumeClicks: { $sum: { $cond: [{ $eq: ['$type', 'resume'] }, 1, 0] } } } },
+        { $sort: { _id: 1 } }
       ]),
-
-      /* Top countries */
-      Analytics.aggregate([
-        {
-          $match: {
-            type: "visit"
-          }
-        },
-        {
-          $group: {
-            _id: "$country",
-            count: {
-              $sum: 1
-            }
-          }
-        },
-        {
-          $sort: {
-            count: -1
-          }
-        },
-        {
-          $limit: 5
-        }
-      ]),
-
-      /* Top public pages */
-      Analytics.aggregate([
-        {
-          $match: {
-            type: "visit"
-          }
-        },
-        {
-          $group: {
-            _id: "$page",
-            count: {
-              $sum: 1
-            }
-          }
-        },
-        {
-          $sort: {
-            count: -1
-          }
-        },
-        {
-          $limit: 5
-        }
+      ranking('country'), ranking('page'),
+      uniqueCount({ ...publicVisits, createdAt: { $gte: new Date(end.getTime() - 5 * 60000), $lte: end } }),
+      range === 'all' ? null : Promise.all([
+        Analytics.countDocuments(previous), uniqueCount(previous),
+        Analytics.countDocuments({ type: 'resume', createdAt: { $gte: previousStart, $lte: previousEnd } })
       ])
     ]);
-
     return res.json({
-      totalVisits,
-      uniqueVisitors: uniqueVisitors.length,
-      resumeClicks,
-      chart,
-      countries,
-      topPages
+      totalVisits, uniqueVisitors: unique[0]?.count || 0, resumeClicks,
+      activeVisitors: active[0]?.count || 0,
+      chart: fillAnalyticsDays(rows, start, days), countries, topPages,
+      previous: comparison ? { totalVisits: comparison[0], uniqueVisitors: comparison[1][0]?.count || 0, resumeClicks: comparison[2] } : null,
+      range, timezone: 'UTC', chartDays: days, generatedAt: end.toISOString()
     });
-  } catch (err) {
-    console.error("Analytics dashboard failed:", err);
-
-    return res.status(500).json({
-      message: "Unable to load analytics"
-    });
+  } catch (error) {
+    console.error('Analytics dashboard failed:', error);
+    return res.status(500).json({ message: 'Unable to load analytics' });
   }
 };

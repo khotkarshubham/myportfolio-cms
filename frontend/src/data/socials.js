@@ -22,11 +22,11 @@ const toWhatsAppUrl = (value = "") => {
 };
 
 export const resolveSocials = (profile = {}) => {
-  const github = toHttpUrl(profile.github) || SOCIAL_PROFILES.github;
-  const linkedin = toHttpUrl(profile.linkedin) || SOCIAL_PROFILES.linkedin;
-  const instagram = toHttpUrl(profile.instagram) || SOCIAL_PROFILES.instagram;
-  const whatsapp = toWhatsAppUrl(profile.whatsapp) || toWhatsAppUrl(SOCIAL_PROFILES.whatsapp);
-  const email = String(profile.email || SOCIAL_PROFILES.email).trim();
+  const github = toHttpUrl(profile.github ?? SOCIAL_PROFILES.github);
+  const linkedin = toHttpUrl(profile.linkedin ?? SOCIAL_PROFILES.linkedin);
+  const instagram = toHttpUrl(profile.instagram ?? SOCIAL_PROFILES.instagram);
+  const whatsapp = toWhatsAppUrl(profile.whatsapp ?? SOCIAL_PROFILES.whatsapp);
+  const email = String(profile.email ?? SOCIAL_PROFILES.email).trim();
 
   return {
     email,

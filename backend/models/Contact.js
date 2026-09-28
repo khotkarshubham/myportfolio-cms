@@ -4,6 +4,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const contactSchema = new mongoose.Schema(
   {
+    readAt: { type: Date, default: null },
+    archived: { type: Boolean, default: false },
     name: {
       type: String,
       required: true,
