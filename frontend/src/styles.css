@@ -3102,3 +3102,11 @@ html[data-theme="light"] .admin-shell :is(.cms-button.is-primary, .admin-login-s
 .cms-date-range .admin-field { flex: 1; min-width: 160px; }
 .cms-date-range > p { flex-basis: 100%; }
 .cms-trend { background: color-mix(in srgb, var(--accent) 7%, transparent); padding: 6px 8px; border-radius: 6px; }
+/* Consistent outline icons across admin navigation and overview cards. */
+.admin-nav-icon { width: 20px; height: 20px; flex-basis: 20px; }
+.admin-nav-icon svg { width: 18px; height: 18px; stroke-width: 1.8; }
+.admin-nav-link.is-active .admin-nav-icon { color: var(--accent-strong); }
+.admin-mgmt-icon svg, .admin-stat-icon svg { width: 21px; height: 21px; stroke-width: 1.8; }
+.admin-icon-button svg { width: 20px; height: 20px; stroke-width: 1.8; }
+.admin-logout { display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+.admin-logout svg { width: 17px; height: 17px; stroke-width: 1.8; }

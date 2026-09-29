@@ -3,18 +3,19 @@ import { Link } from "react-router-dom";
 import API from "../../services/api";
 import { formatDateTime, humanize } from "../../utils/adminFormat";
 import {
-  FaUser,
-  FaProjectDiagram,
-  FaBlog,
-  FaTools,
-  FaEnvelope,
-  FaKey,
-  FaCertificate,
-  FaBriefcase,
-  FaChartBar,
-  FaUsers,
-  FaFileAlt,
-} from "react-icons/fa";
+  FiUser,
+  FiLayers,
+  FiEdit3,
+  FiCode,
+  FiInbox,
+  FiLock,
+  FiAward,
+  FiBriefcase,
+  FiBarChart2,
+  FiUsers,
+  FiActivity,
+  FiDownload,
+} from "react-icons/fi";
 
 export default function Dashboard() {
   const role = localStorage.getItem("admin_role");
@@ -61,49 +62,49 @@ export default function Dashboard() {
     {
       title: "Analytics",
       desc: "Traffic, charts and visitor insights",
-      icon: <FaChartBar />,
+      icon: <FiBarChart2 />,
       link: "/admin/analytics",
     },
     {
       title: "Manage Profile",
       desc: "Name, photo, resume and socials",
-      icon: <FaUser />,
+      icon: <FiUser />,
       link: "/admin/profile",
     },
     {
       title: "Projects",
       desc: "Portfolio case studies",
-      icon: <FaProjectDiagram />,
+      icon: <FiLayers />,
       link: "/admin/projects",
     },
     {
       title: "Blogs",
       desc: "Writing and announcements",
-      icon: <FaBlog />,
+      icon: <FiEdit3 />,
       link: "/admin/blogs",
     },
     {
       title: "Skills",
       desc: "Tech stack chips",
-      icon: <FaTools />,
+      icon: <FiCode />,
       link: "/admin/skills",
     },
     {
       title: "Certifications",
       desc: "Credentials and badges",
-      icon: <FaCertificate />,
+      icon: <FiAward />,
       link: "/admin/certifications",
     },
     {
       title: "Work Experience",
       desc: "Companies, roles and promotions",
-      icon: <FaBriefcase />,
+      icon: <FiBriefcase />,
       link: "/admin/experience",
     },
     {
       title: "Inbox",
       desc: "Contact form messages",
-      icon: <FaEnvelope />,
+      icon: <FiInbox />,
       link: "/admin/messages",
     },
     ...(role === "superadmin"
@@ -111,13 +112,13 @@ export default function Dashboard() {
           {
             title: "Admin Users",
             desc: "Roles and access",
-            icon: <FaUsers />,
+            icon: <FiUsers />,
             link: "/admin/users",
           },
           {
             title: "Activity Logs",
             desc: "Audit trail",
-            icon: <FaFileAlt />,
+            icon: <FiActivity />,
             link: "/admin/logs",
           },
         ]
@@ -125,7 +126,7 @@ export default function Dashboard() {
     {
       title: "Change Password",
       desc: "Update sign-in credentials",
-      icon: <FaKey />,
+      icon: <FiLock />,
       link: "/admin/change-password",
     },
   ];
@@ -134,28 +135,28 @@ export default function Dashboard() {
     {
       title: "Total visits",
       value: stats?.totalVisits,
-      icon: <FaChartBar />,
+      icon: <FiBarChart2 />,
       link: "/admin/analytics",
       note: "All recorded page visits",
     },
     {
       title: "Unique visitors",
       value: stats?.uniqueVisitors,
-      icon: <FaUsers />,
+      icon: <FiUsers />,
       link: "/admin/analytics",
       note: "Distinct portfolio visitors",
     },
     {
       title: "Resume clicks",
       value: stats?.resumeClicks,
-      icon: <FaFileAlt />,
+      icon: <FiDownload />,
       link: "/admin/analytics",
       note: "Interest in your experience",
     },
     {
       title: "Unread messages",
       value: messages?.filter((m) => !m.readAt && !m.archived).length,
-      icon: <FaEnvelope />,
+      icon: <FiInbox />,
       link: "/admin/messages",
       note: "Conversations to catch up on",
     },
@@ -280,7 +281,7 @@ export default function Dashboard() {
               logs.slice(0, 4).map((log) => (
                 <div className="cms-recent-row" key={log._id}>
                   <span className="cms-avatar">
-                    <FaFileAlt />
+                    <FiActivity />
                   </span>
                   <span>
                     <strong>{humanize(log.action)}</strong>

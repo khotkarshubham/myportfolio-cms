@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  FaChartBar,
-  FaUser,
-  FaProjectDiagram,
-  FaBlog,
-  FaTools,
-  FaEnvelope,
-  FaKey,
-  FaCertificate,
-  FaBriefcase,
-  FaUsers,
-  FaClipboardList,
-  FaBars,
-  FaTimes,
-} from "react-icons/fa";
+  FiBarChart2,
+  FiGrid,
+  FiLogOut,
+  FiUser,
+  FiLayers,
+  FiEdit3,
+  FiCode,
+  FiInbox,
+  FiLock,
+  FiAward,
+  FiBriefcase,
+  FiUsers,
+  FiActivity,
+  FiMenu,
+  FiX,
+} from "react-icons/fi";
 import ThemeToggle from "./ThemeToggle";
 import { setToken } from "../services/api";
 
@@ -26,18 +28,18 @@ export default function AdminLayout({ children }) {
   const email = localStorage.getItem("admin_email");
 
   const menu = [
-    { name: "Dashboard", path: "/admin", icon: <FaChartBar /> },
-    { name: "Analytics", path: "/admin/analytics", icon: <FaChartBar /> },
-    { name: "Profile", path: "/admin/profile", icon: <FaUser /> },
-    { name: "Projects", path: "/admin/projects", icon: <FaProjectDiagram /> },
-    { name: "Blogs", path: "/admin/blogs", icon: <FaBlog /> },
-    { name: "Skills", path: "/admin/skills", icon: <FaTools /> },
-    { name: "Certifications", path: "/admin/certifications", icon: <FaCertificate /> },
-    { name: "Experience", path: "/admin/experience", icon: <FaBriefcase /> },
-    { name: "Messages", path: "/admin/messages", icon: <FaEnvelope /> },
-    { name: "Users", path: "/admin/users", icon: <FaUsers />, roles: ["superadmin"] },
-    { name: "Activity Logs", path: "/admin/logs", icon: <FaClipboardList />, roles: ["superadmin"] },
-    { name: "Password", path: "/admin/change-password", icon: <FaKey /> },
+    { name: "Dashboard", path: "/admin", icon: <FiGrid /> },
+    { name: "Analytics", path: "/admin/analytics", icon: <FiBarChart2 /> },
+    { name: "Profile", path: "/admin/profile", icon: <FiUser /> },
+    { name: "Projects", path: "/admin/projects", icon: <FiLayers /> },
+    { name: "Blogs", path: "/admin/blogs", icon: <FiEdit3 /> },
+    { name: "Skills", path: "/admin/skills", icon: <FiCode /> },
+    { name: "Certifications", path: "/admin/certifications", icon: <FiAward /> },
+    { name: "Experience", path: "/admin/experience", icon: <FiBriefcase /> },
+    { name: "Messages", path: "/admin/messages", icon: <FiInbox /> },
+    { name: "Users", path: "/admin/users", icon: <FiUsers />, roles: ["superadmin"] },
+    { name: "Activity Logs", path: "/admin/logs", icon: <FiActivity />, roles: ["superadmin"] },
+    { name: "Password", path: "/admin/change-password", icon: <FiLock /> },
   ];
 
   useEffect(() => {
@@ -127,7 +129,7 @@ export default function AdminLayout({ children }) {
             <span>{email || "Signed in"}</span>
           </p>
           <button type="button" className="admin-logout" onClick={logout}>
-            Logout
+            <FiLogOut aria-hidden="true" /> Logout
           </button>
         </div>
       </aside>
@@ -143,7 +145,7 @@ export default function AdminLayout({ children }) {
             aria-expanded={mobileOpen}
             className="admin-icon-button"
           >
-            <FaBars />
+            <FiMenu />
           </button>
         </div>
       </header>
@@ -171,13 +173,13 @@ export default function AdminLayout({ children }) {
             aria-label="Close admin navigation"
             className="admin-icon-button"
           >
-            <FaTimes />
+            <FiX />
           </button>
         </div>
         {renderMenu(true)}
         <div className="admin-sidebar-foot">
           <button type="button" className="admin-logout" onClick={logout}>
-            Logout
+            <FiLogOut aria-hidden="true" /> Logout
           </button>
         </div>
       </aside>
