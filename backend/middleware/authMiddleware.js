@@ -61,6 +61,7 @@ const authMiddleware = async (req, res, next) => {
       id: admin._id.toString(),
       role: admin.role,
       email: admin.email,
+      sessionVersion: admin.sessionVersion || 0,
     };
 
     next();

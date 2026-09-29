@@ -3092,3 +3092,13 @@ html[data-theme="light"] .admin-shell :is(.cms-button.is-primary, .admin-login-s
 .cms-daily-details > div { max-height: 320px; margin-top: 16px; overflow: auto; }
 @media (max-width: 1000px) { .cms-security-layout { grid-template-columns: 1fr; } .cms-role-guide { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .cms-analytics-chart { height: 240px; } .cms-chart-summary { gap: 20px; } .cms-chart-summary strong { font-size: 19px; } .cms-users-table { min-width: 650px; } .cms-select { min-width: 0; } }
+.cms-form-title { font-size: 20px; font-weight: 750; letter-spacing: -.025em; margin-bottom: 8px; }
+.cms-session-card { display: flex; gap: 16px; align-items: center; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
+.cms-account-facts { margin-top: 24px; }
+.cms-account-facts > div { display: grid; gap: 6px; padding: 16px 0; border-top: 1px solid var(--line); }
+.cms-account-facts dt { font-size: 11px; color: var(--muted); }
+.cms-account-facts dd { font-size: 13px; margin: 0; text-transform: capitalize; }
+.cms-date-range { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; }
+.cms-date-range .admin-field { flex: 1; min-width: 160px; }
+.cms-date-range > p { flex-basis: 100%; }
+.cms-trend { background: color-mix(in srgb, var(--accent) 7%, transparent); padding: 6px 8px; border-radius: 6px; }
