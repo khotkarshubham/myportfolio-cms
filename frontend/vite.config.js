@@ -11,7 +11,6 @@ export default defineConfig({
         manualChunks: {
           react: ["react", "react-dom", "react-router-dom"],
           animation: ["framer-motion"],
-          particles: ["@tsparticles/react", "tsparticles", "tsparticles-slim"],
           charts: ["recharts"]
         }
       }

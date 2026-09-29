@@ -1,254 +1,435 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import API from "../../services/api";
-import { motion } from "framer-motion";
-import { FaBriefcase, FaTrash } from "react-icons/fa";
+
+const emptyRole = () => ({
+  role: "",
+  startDate: "",
+  endDate: "",
+  description: "",
+  technologies: "",
+  promotionLabel: "",
+  achievements: "",
+  impact: "",
+  isCurrent: false,
+  order: 0,
+});
+
+const emptyOrg = () => ({
+  organization: "",
+  industry: "",
+  location: "",
+  website: "",
+  isVisible: true,
+  order: 0,
+  roles: [emptyRole()],
+});
+
+const toForm = (org) => ({
+  organization: org.organization || "",
+  industry: org.organizationMeta?.industry || "",
+  location: org.organizationMeta?.location || "",
+  website: org.organizationMeta?.website || "",
+  isVisible: org.isVisible !== false,
+  order: org.order || 0,
+  roles: (org.roles || []).map((role, index) => ({
+    _id: role._id,
+    role: role.role || "",
+    startDate: role.startDate || "",
+    endDate: role.endDate || "",
+    description: role.description || "",
+    technologies: (role.technologies || []).join(", "),
+    promotionLabel: role.promotionLabel || "",
+    achievements: (role.achievements || []).join("\n"),
+    impact: (role.impact || [])
+      .map((item) => `${item.value} | ${item.label}`)
+      .join("\n"),
+    isCurrent: Boolean(role.isCurrent) || !role.endDate,
+    order: role.order ?? index,
+  })),
+});
+
+const toPayload = (form) => ({
+  organization: form.organization,
+  organizationMeta: {
+    industry: form.industry,
+    location: form.location,
+    website: form.website,
+  },
+  isVisible: form.isVisible,
+  order: Number(form.order || 0),
+  roles: form.roles.map((role, index) => ({
+    _id: role._id,
+    role: role.role,
+    startDate: role.startDate,
+    endDate: role.isCurrent ? "" : role.endDate,
+    description: role.description,
+    technologies: role.technologies,
+    promotionLabel: role.promotionLabel,
+    achievements: role.achievements,
+    impact: role.impact,
+    isCurrent: role.isCurrent,
+    order: index,
+  })),
+});
 
 export default function AdminExperience() {
-
   const [list, setList] = useState([]);
-
-  const [form, setForm] = useState({
-    company: "",
-    role: "",
-    startDate: "",
-    endDate: "",
-    description: "",
-    technologies: ""
-  });
+  const [form, setForm] = useState(emptyOrg());
+  const [editingId, setEditingId] = useState("");
+  const [logoFile, setLogoFile] = useState(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
-
-    const res = await API.get("/public/experiences");
-
-    setList(res.data);
-
+    const res = await API.get("/admin/experiences");
+    setList(Array.isArray(res.data) ? res.data : []);
   };
 
   useEffect(() => {
-
-    load();
-
+    load().catch(() => setError("Unable to load organizations."));
   }, []);
 
-  const add = async () => {
+  const updateRole = (index, patch) => {
+    setForm((current) => ({
+      ...current,
+      roles: current.roles.map((role, roleIndex) =>
+        roleIndex === index ? { ...role, ...patch } : role
+      ),
+    }));
+  };
 
-    const payload = {
-      ...form,
-      technologies: form.technologies.split(",").map(t => t.trim())
-    };
-
-    await API.post("/admin/experiences", payload);
-
-    setForm({
-      company: "",
-      role: "",
-      startDate: "",
-      endDate: "",
-      description: "",
-      technologies: ""
+  const moveRole = (index, direction) => {
+    setForm((current) => {
+      const next = [...current.roles];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...current, roles: next };
     });
-
-    load();
-
   };
 
-  const del = async (id) => {
+  const save = async () => {
+    setSaving(true);
+    setError("");
 
-    await API.delete("/admin/experiences/" + id);
+    try {
+      const payload = toPayload(form);
+      let body = payload;
 
-    load();
+      if (logoFile) {
+        body = new FormData();
+        body.append("organization", payload.organization);
+        body.append("isVisible", String(payload.isVisible));
+        body.append("order", String(payload.order));
+        body.append("organizationMeta", JSON.stringify(payload.organizationMeta));
+        body.append("roles", JSON.stringify(payload.roles));
+        body.append("companyLogo", logoFile);
+      }
 
+      if (editingId) {
+        await API.put(`/admin/experiences/${editingId}`, body);
+      } else {
+        await API.post("/admin/experiences", body);
+      }
+
+      setForm(emptyOrg());
+      setEditingId("");
+      setLogoFile(null);
+      await load();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Unable to save organization.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
+  const startEdit = (org) => {
+    setEditingId(org._id);
+    setForm(toForm(org));
+    setLogoFile(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-    <div className="space-y-12">
+  const moveOrg = async (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= list.length) return;
+    const next = [...list];
+    [next[index], next[target]] = [next[target], next[index]];
+    setList(next);
+    await API.put("/admin/experiences/reorder", {
+      ids: next.map((org) => org._id),
+    });
+  };
 
-      <h1 className="text-3xl font-bold text-tech-accent">
-        Work Experience Manager
-      </h1>
+  const removeOrg = async (id) => {
+    await API.delete(`/admin/experiences/${id}`);
+    if (editingId === id) {
+      setEditingId("");
+      setForm(emptyOrg());
+    }
+    load();
+  };
 
-
-      {/* EXPERIENCE FORM */}
-
-      <div className="bg-tech-card p-6 rounded-xl border border-gray-700 space-y-4">
-
-        <div className="grid md:grid-cols-2 gap-4">
-
-          <input
-            value={form.company}
-            placeholder="Company"
-            onChange={(e)=>setForm({...form,company:e.target.value})}
-            className="p-3 rounded bg-slate-900 border border-gray-700"
-          />
-
-          <input
-            value={form.role}
-            placeholder="Role"
-            onChange={(e)=>setForm({...form,role:e.target.value})}
-            className="p-3 rounded bg-slate-900 border border-gray-700"
-          />
-
-          <input
-            value={form.startDate}
-            placeholder="Start Date (eg. Jan 2023)"
-            onChange={(e)=>setForm({...form,startDate:e.target.value})}
-            className="p-3 rounded bg-slate-900 border border-gray-700"
-          />
-
-          <input
-            value={form.endDate}
-            placeholder="End Date (eg. Present)"
-            onChange={(e)=>setForm({...form,endDate:e.target.value})}
-            className="p-3 rounded bg-slate-900 border border-gray-700"
-          />
-
-        </div>
-
-        <textarea
-          value={form.description}
-          placeholder="Description"
-          onChange={(e)=>setForm({...form,description:e.target.value})}
-          className="w-full p-3 rounded bg-slate-900 border border-gray-700"
-        />
-
-        <input
-          value={form.technologies}
-          placeholder="Technologies (AWS, Kubernetes, Terraform)"
-          onChange={(e)=>setForm({...form,technologies:e.target.value})}
-          className="w-full p-3 rounded bg-slate-900 border border-gray-700"
-        />
-
-        <button
-          onClick={add}
-          className="
-          bg-tech-accent
-          text-black
-          px-6
-          py-2
-          rounded-lg
-          font-semibold
-          hover:scale-105
-          transition
-          "
-        >
-          Add Experience
-        </button>
-
-      </div>
-
-
-      {/* EXPERIENCE TIMELINE PREVIEW */}
-
-      <div className="space-y-8">
-
-        {list.map((exp,i)=>(
-
-          <motion.div
-            key={exp._id}
-            initial={{opacity:0,y:20}}
-            animate={{opacity:1,y:0}}
-            transition={{delay:i*0.1}}
-            className="
-            relative
-            bg-tech-card
-            border border-gray-700
-            p-6
-            rounded-xl
-            shadow-lg
-            "
-          >
-
-            {/* Timeline dot */}
-
-            <div className="
-            absolute
-            left-[-10px]
-            top-8
-            w-5
-            h-5
-            bg-tech-accent
-            rounded-full
-            shadow-lg
-            "></div>
-
-
-            <div className="flex justify-between items-start">
-
-              <div>
-
-                <h3 className="text-xl font-semibold text-tech-accent flex items-center gap-2">
-
-                  <FaBriefcase/>
-
-                  {exp.role}
-
-                </h3>
-
-                <p className="text-gray-300 mt-1">
-
-                  {exp.company}
-
-                </p>
-
-                <p className="text-gray-500 text-sm mt-1">
-
-                  {exp.startDate} — {exp.endDate}
-
-                </p>
-
-              </div>
-
-              <button
-                onClick={()=>del(exp._id)}
-                className="
-                text-red-400
-                hover:text-red-500
-                transition
-                "
-              >
-                <FaTrash/>
-              </button>
-
-            </div>
-
-
-            <p className="text-gray-400 mt-4">
-              {exp.description}
-            </p>
-
-
-            {/* TECHNOLOGY BADGES */}
-
-            <div className="flex flex-wrap gap-2 mt-4">
-
-              {exp.technologies?.map((tech,i)=>(
-                <span
-                  key={i}
-                  className="
-                  bg-slate-800
-                  text-tech-accent
-                  text-xs
-                  px-3
-                  py-1
-                  rounded-full
-                  border border-gray-700
-                  "
-                >
-                  {tech}
-                </span>
-              ))}
-
-            </div>
-
-          </motion.div>
-
-        ))}
-
-      </div>
-
-    </div>
-
+  const heading = useMemo(
+    () => (editingId ? "Edit organization" : "New organization"),
+    [editingId]
   );
 
+  return (
+    <div className="space-y-10">
+      <h1 className="text-3xl font-bold text-tech-accent">Experience</h1>
+      <p className="text-sm text-gray-400 max-w-3xl">
+        Organizations are the primary record. Add every promotion as a role
+        inside the same company so the public career journey can show growth
+        in one place.
+      </p>
+
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+
+      <div className="bg-tech-card p-6 rounded-xl border border-gray-700 space-y-4">
+        <h2 className="text-xl font-semibold">{heading}</h2>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <input
+            value={form.organization}
+            placeholder="Organization"
+            onChange={(e) => setForm({ ...form, organization: e.target.value })}
+            className="p-3 rounded bg-slate-900 border border-gray-700"
+          />
+          <input
+            value={form.industry}
+            placeholder="Industry"
+            onChange={(e) => setForm({ ...form, industry: e.target.value })}
+            className="p-3 rounded bg-slate-900 border border-gray-700"
+          />
+          <input
+            value={form.location}
+            placeholder="Location"
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
+            className="p-3 rounded bg-slate-900 border border-gray-700"
+          />
+          <input
+            value={form.website}
+            placeholder="Website"
+            onChange={(e) => setForm({ ...form, website: e.target.value })}
+            className="p-3 rounded bg-slate-900 border border-gray-700"
+          />
+        </div>
+
+        <label className="block text-sm text-gray-400">
+          Company logo
+          <input
+            type="file"
+            accept="image/*"
+            className="block mt-2"
+            onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+          />
+        </label>
+
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={form.isVisible}
+            onChange={(e) => setForm({ ...form, isVisible: e.target.checked })}
+          />
+          Visible on the public site
+        </label>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Roles</h3>
+            <button
+              type="button"
+              onClick={() =>
+                setForm({ ...form, roles: [...form.roles, emptyRole()] })
+              }
+              className="text-sm text-tech-accent"
+            >
+              + Add Role
+            </button>
+          </div>
+
+          {form.roles.map((role, index) => (
+            <div
+              key={role._id || index}
+              className="border border-gray-700 rounded-xl p-4 space-y-3"
+            >
+              <div className="grid md:grid-cols-2 gap-3">
+                <input
+                  value={role.role}
+                  placeholder="Role title"
+                  onChange={(e) => updateRole(index, { role: e.target.value })}
+                  className="p-3 rounded bg-slate-900 border border-gray-700"
+                />
+                <input
+                  value={role.promotionLabel}
+                  placeholder="Promotion label (eg. PROMOTED)"
+                  onChange={(e) =>
+                    updateRole(index, { promotionLabel: e.target.value })
+                  }
+                  className="p-3 rounded bg-slate-900 border border-gray-700"
+                />
+                <input
+                  value={role.startDate}
+                  placeholder="Start date"
+                  onChange={(e) =>
+                    updateRole(index, { startDate: e.target.value })
+                  }
+                  className="p-3 rounded bg-slate-900 border border-gray-700"
+                />
+                <input
+                  value={role.endDate}
+                  placeholder="End date"
+                  disabled={role.isCurrent}
+                  onChange={(e) =>
+                    updateRole(index, { endDate: e.target.value })
+                  }
+                  className="p-3 rounded bg-slate-900 border border-gray-700 disabled:opacity-50"
+                />
+              </div>
+
+              <textarea
+                value={role.description}
+                placeholder="Description"
+                onChange={(e) =>
+                  updateRole(index, { description: e.target.value })
+                }
+                className="w-full p-3 rounded bg-slate-900 border border-gray-700"
+              />
+
+              <input
+                value={role.technologies}
+                placeholder="Technologies (AWS, Kubernetes, Terraform)"
+                onChange={(e) =>
+                  updateRole(index, { technologies: e.target.value })
+                }
+                className="w-full p-3 rounded bg-slate-900 border border-gray-700"
+              />
+
+              <textarea
+                value={role.achievements}
+                placeholder="Key achievements, one per line"
+                onChange={(e) =>
+                  updateRole(index, { achievements: e.target.value })
+                }
+                className="w-full p-3 rounded bg-slate-900 border border-gray-700"
+              />
+
+              <textarea
+                value={role.impact}
+                placeholder={"Impact metrics, one per line\n99.9% | Uptime"}
+                onChange={(e) =>
+                  updateRole(index, { impact: e.target.value })
+                }
+                className="w-full p-3 rounded bg-slate-900 border border-gray-700"
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={role.isCurrent}
+                    onChange={(e) =>
+                      updateRole(index, {
+                        isCurrent: e.target.checked,
+                        endDate: e.target.checked ? "" : role.endDate,
+                      })
+                    }
+                  />
+                  Current role
+                </label>
+
+                <div className="flex gap-2 text-sm">
+                  <button type="button" onClick={() => moveRole(index, -1)}>
+                    ↑
+                  </button>
+                  <button type="button" onClick={() => moveRole(index, 1)}>
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="text-red-400"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        roles: form.roles.filter((_, roleIndex) => roleIndex !== index),
+                      })
+                    }
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="bg-tech-accent text-black px-6 py-2 rounded-lg font-semibold"
+          >
+            {editingId ? "Save Organization" : "Create Organization"}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId("");
+                setForm(emptyOrg());
+                setLogoFile(null);
+              }}
+              className="px-6 py-2 rounded-lg border border-gray-700"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {list.map((org, index) => (
+          <article
+            key={org._id}
+            className="bg-tech-card border border-gray-700 rounded-xl p-5"
+          >
+            <div className="flex justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-tech-accent">
+                  {org.organization}
+                </h3>
+                <p className="text-sm text-gray-400 mt-1">
+                  {org.roles?.length || 0} roles · {org.startDate} — {org.endDate || "Present"}
+                  {org.isVisible === false ? " · Hidden" : ""}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {(org.roles || []).map((role) => role.role).join(" → ")}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" className="text-sm" onClick={() => moveOrg(index, -1)}>↑</button>
+                <button type="button" className="text-sm" onClick={() => moveOrg(index, 1)}>↓</button>
+                <button
+                  type="button"
+                  className="text-sm text-tech-accent"
+                  onClick={() => startEdit(org)}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="text-sm text-red-400"
+                  onClick={() => removeOrg(org._id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
 }

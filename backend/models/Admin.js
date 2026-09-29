@@ -4,6 +4,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const adminSchema = new mongoose.Schema(
   {
+    sessionVersion: { type: Number, default: 0 },
+    passwordChangedAt: { type: Date, default: null },
+    lastLoginAt: { type: Date, default: null },
     name: {
       type: String,
       trim: true,

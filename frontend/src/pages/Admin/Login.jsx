@@ -1,146 +1,149 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import API, { setToken } from "../../services/api";
-import { useNavigate } from "react-router-dom";
-import { FiMoon, FiSun } from "react-icons/fi";
-import { useTheme } from "../../context/ThemeContext";
+import ThemeToggle from "../../components/ThemeToggle";
 
 export default function Login() {
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { dark, toggleTheme } = useTheme();
 
-  const submit = async (e) => {
-
-    e.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
 
     try {
-
       const res = await API.post("/auth/login", {
-        email,
-        password
+        email: email.trim(),
+        password,
       });
-
       const token = res.data.token;
       const admin = res.data.admin;
 
-      if (token && admin) {
-
-        /* ✅ SAVE TOKEN */
-        localStorage.setItem("admin_token", token);
-
-        /* 🔥 SAVE ROLE (IMPORTANT FIX) */
-        localStorage.setItem("admin_role", admin.role);
-
-        /* OPTIONAL: store email */
-        localStorage.setItem("admin_email", admin.email);
-
-        /* ✅ SET AXIOS HEADER */
-        setToken(token);
-
-        /* 🚀 REDIRECT */
-        navigate("/admin");
-
-      } else {
-
-        alert("Login failed: Invalid response");
-
+      if (!token || !admin) {
+        setError("Login failed. Please try again.");
+        return;
       }
 
+      localStorage.setItem("admin_token", token);
+      localStorage.setItem("admin_role", admin.role);
+      localStorage.setItem("admin_email", admin.email);
+      setToken(token);
+      navigate("/admin", { replace: true });
     } catch (err) {
-
-      console.error("Login error:", err.response?.data || err.message);
-
-      alert(
-        err.response?.data?.message || "Login failed"
-      );
-
+      setError(err.response?.data?.message || "Invalid email or password.");
+    } finally {
+      setSubmitting(false);
     }
-
   };
 
   return (
-
     <div className="admin-login-page">
-      <button
-        type="button"
-        className="admin-theme-toggle admin-login-theme-toggle"
-        onClick={toggleTheme}
-        aria-label={`Switch to ${dark ? "light" : "dark"} mode`}
-        title={`Switch to ${dark ? "light" : "dark"} mode`}
-      >
-        {dark ? <FiSun /> : <FiMoon />}
-      </button>
+      <div className="admin-login-theme">
+        <ThemeToggle />
+      </div>
 
-      <form
-        onSubmit={submit}
-        className="admin-login-form"
-      >
+      <div className="cms-login-layout">
+        <section className="cms-login-story">
+          <Link to="/" className="cms-login-home">
+            ← Back to portfolio
+          </Link>
+          <p className="admin-kicker">Portfolio / Workspace</p>
+          <h2>
+            Good work deserves
+            <br />
+            <em>a great story.</em>
+          </h2>
+          <p>
+            Your space to curate projects, share ideas, and turn new connections
+            into opportunities.
+          </p>
+          <div className="cms-login-outline">
+            <span>01 / Create</span>
+            <strong>Keep your story moving.</strong>
+            <p>
+              Projects. Articles. Conversations.
+              <br />
+              All in one thoughtful workspace.
+            </p>
+            <div className="cms-login-lines">
+              <i />
+              <i />
+              <i />
+            </div>
+          </div>
+          <small>Portfolio CMS · Administrator access</small>
+        </section>
+        <form onSubmit={submit} className="admin-login-form">
+          <div className="admin-login-brand">
+            <span className="admin-login-mark">SK</span>
+            <p>Portfolio CMS</p>
+          </div>
+          <h1>Welcome back.</h1>
+          <p className="admin-login-copy">
+            Sign in to your portfolio workspace.
+          </p>
 
-        <h2 className="text-3xl font-bold text-center text-tech-accent">
-          Admin Login
-        </h2>
+          <label className="admin-field">
+            <span>Email</span>
+            <input
+              disabled={submitting}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="admin@example.com"
+              type="email"
+              autoComplete="username"
+              required
+              className="admin-input"
+            />
+          </label>
 
-        {/* EMAIL */}
+          <label className="admin-field">
+            <span>Password</span>
+            <div className="cms-password-field">
+              <input
+                disabled={submitting}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                required
+                className="admin-input"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </label>
 
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          type="email"
-          required
-          className="
-            border border-gray-700
-            bg-tech-bg text-gray-200
-            p-3 w-full rounded
-            focus:outline-none
-            focus:border-tech-accent
-            transition
-          "
-        />
+          {error && (
+            <p className="admin-form-error" role="alert">
+              {error}
+            </p>
+          )}
 
-        {/* PASSWORD */}
-
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          type="password"
-          placeholder="Password"
-          required
-          className="
-            border border-gray-700
-            bg-tech-bg text-gray-200
-            p-3 w-full rounded
-            focus:outline-none
-            focus:border-tech-accent
-            transition
-          "
-        />
-
-        {/* BUTTON */}
-
-        <button
-          type="submit"
-          className="
-            bg-tech-accent
-            hover:bg-cyan-500
-            text-black
-            font-semibold
-            px-6 py-3
-            rounded
-            transition
-            duration-200
-            w-full
-          "
-        >
-          Login
-        </button>
-
-      </form>
-
+          <button
+            type="submit"
+            className="admin-login-submit"
+            disabled={submitting}
+          >
+            {submitting ? "Signing in…" : "Sign in to workspace →"}
+          </button>
+          <p className="cms-muted">
+            Access is limited to authorized administrators.
+          </p>
+        </form>
+      </div>
     </div>
-
   );
-
 }

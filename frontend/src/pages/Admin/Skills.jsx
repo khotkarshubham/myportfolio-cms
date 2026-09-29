@@ -14,7 +14,7 @@ export default function Skills() {
 
       const res = await API.get("/public/skills");
 
-      setSkills(res.data);
+      setSkills(Array.isArray(res.data) ? res.data : []);
 
     } catch (err) {
 

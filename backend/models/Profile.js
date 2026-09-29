@@ -35,6 +35,41 @@ const profileSchema = new mongoose.Schema(
       trim: true,
       maxlength: 1000,
       default: ""
+    },
+
+    github: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "https://github.com/khotkarshubham"
+    },
+
+    linkedin: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "https://www.linkedin.com/in/shubhamkhotkar/"
+    },
+
+    instagram: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "https://www.instagram.com/khotkarshubham/"
+    },
+
+    whatsapp: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "919270702964"
+    },
+
+    email: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "khotkarshubham@hotmail.com"
     }
   },
   {

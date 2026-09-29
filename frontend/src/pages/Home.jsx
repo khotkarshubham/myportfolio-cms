@@ -1,14 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiArrowUpRight, FiChevronDown, FiExternalLink } from "react-icons/fi";
+import {
+  FiArrowUpRight,
+  FiAward,
+  FiBriefcase,
+  FiChevronDown,
+  FiExternalLink,
+  FiGithub,
+  FiLayers,
+  FiMail,
+  FiTool,
+} from "react-icons/fi";
 import SkillList from "../components/SkillList";
 import Certifications from "../components/Certifications";
-import WorkExperience from "../components/WorkExperience";
-import GitHubRepos from "../components/GitHubRepos";
+import CareerJourney from "../components/CareerJourney";
+import FeaturedProjects from "../components/FeaturedProjects";
 import GitHubGraph from "../components/GitHubGraph";
 import GitHubStats from "../components/GitHubStats";
-import { useTheme } from "../context/ThemeContext";
+import SectionHeading from "../components/SectionHeading";
+import useSocials from "../hooks/useSocials";
 
 const reveal = {
   hidden: { opacity: 0, y: 18 },
@@ -27,7 +38,7 @@ const sectionReveal = {
 };
 
 export default function Home() {
-  const { dark } = useTheme();
+  const socials = useSocials();
   const [typedHeadline, setTypedHeadline] = useState("");
   const [isTyping, setIsTyping] = useState(true);
 
@@ -112,13 +123,12 @@ export default function Home() {
         whileInView="visible"
         viewport={{ once: true, amount: 0.14 }}
       >
-        <div className="section-heading compact">
-          <div>
-            <span className="section-index">01</span>
-            <h2>Tools I work with.</h2>
-          </div>
-          <span className="section-note">Curated from the portfolio CMS</span>
-        </div>
+        <SectionHeading
+          icon={<FiTool />}
+          title="Tools I"
+          accent="work with."
+          aside={<span className="section-note">Curated from the portfolio CMS</span>}
+        />
         <SkillList />
       </motion.section>
 
@@ -127,17 +137,9 @@ export default function Home() {
         variants={sectionReveal}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.14 }}
+        viewport={{ once: true, amount: 0.08 }}
       >
-        <div className="section-heading compact">
-          <div>
-            <span className="section-index">02</span>
-            <h2>Experience &amp; credentials.</h2>
-          </div>
-          <span className="section-note">Proof over promises</span>
-        </div>
-        <WorkExperience />
-        <Certifications />
+        <CareerJourney headingIcon={<FiBriefcase />} />
       </motion.section>
 
       <motion.section
@@ -147,39 +149,51 @@ export default function Home() {
         whileInView="visible"
         viewport={{ once: true, amount: 0.14 }}
       >
-        <div className="section-heading compact">
-          <div>
-            <span className="section-index">03</span>
-            <h2>Selected engineering work.</h2>
-          </div>
-          <Link to="/projects" className="text-link">
-            View all work <FiArrowUpRight />
-          </Link>
-        </div>
-        <GitHubRepos />
+        <Certifications headingIcon={<FiAward />} />
       </motion.section>
 
       <motion.section
-        className="home-section content-width home-panel-section github-section"
+        className="home-section content-width home-panel-section"
+        variants={sectionReveal}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.14 }}
+      >
+        <SectionHeading
+          icon={<FiLayers />}
+          title="Selected"
+          accent="engineering work."
+          aside={
+            <Link to="/projects" className="text-link">
+              View all work <FiArrowUpRight />
+            </Link>
+          }
+        />
+        <FeaturedProjects />
+      </motion.section>
+
+      <motion.section
+        className="home-section content-width home-panel-section github-section is-compact"
         variants={sectionReveal}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, amount: 0.12 }}
       >
-        <div className="section-heading compact">
-          <div>
-            <span className="section-index">04</span>
-            <h2>Open-source footprint.</h2>
-          </div>
-          <a
-            href="https://github.com/khotkarshubham"
-            target="_blank"
-            rel="noreferrer"
-            className="text-link"
-          >
-            GitHub profile <FiExternalLink />
-          </a>
-        </div>
+        <SectionHeading
+          icon={<FiGithub />}
+          title="Open-source"
+          accent="footprint."
+          aside={
+            socials.github && <a
+              href={socials.github}
+              target="_blank"
+              rel="noreferrer"
+              className="text-link"
+            >
+              GitHub profile <FiExternalLink />
+            </a>
+          }
+        />
 
         <div className="github-dashboard">
           <div className="github-graph-panel">
@@ -199,8 +213,12 @@ export default function Home() {
         viewport={{ once: true, amount: 0.2 }}
       >
         <div>
-          <span className="section-index">05</span>
-          <h2>Have a system worth improving?</h2>
+          <span className="section-index is-icon" aria-hidden="true">
+            <FiMail />
+          </span>
+          <h2>
+            Have a system <span className="section-heading-accent">worth improving?</span>
+          </h2>
           <p>
             Let&apos;s talk about the infrastructure, automation or platform
             problem you&apos;re solving.
@@ -210,7 +228,6 @@ export default function Home() {
           Let&apos;s connect <FiArrowUpRight />
         </Link>
       </motion.section>
-
     </div>
   );
 }

@@ -21,6 +21,15 @@ export const loginLimiter = rateLimit({
   skipSuccessfulRequests: false
 });
 
+export const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  keyGenerator: req => req.user.id,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler
+});
+
 /**
  * Contact form
  *

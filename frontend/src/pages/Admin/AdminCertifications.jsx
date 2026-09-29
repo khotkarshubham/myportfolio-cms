@@ -8,14 +8,16 @@ export default function AdminCertifications(){
 
   const [form,setForm]=useState({
     name:"",
-    url:""
+    url:"",
+    issuer:"",
+    year:""
   });
 
   const load=async()=>{
 
     const res=await API.get("/public/certifications");
 
-    setCerts(res.data);
+    setCerts(Array.isArray(res.data) ? res.data : []);
 
   };
 
@@ -33,7 +35,9 @@ export default function AdminCertifications(){
 
     setForm({
       name:"",
-      url:""
+      url:"",
+      issuer:"",
+      year:""
     });
 
     load();
@@ -71,6 +75,20 @@ export default function AdminCertifications(){
           value={form.url}
           placeholder="Credential Verification URL"
           onChange={(e)=>setForm({...form,url:e.target.value})}
+          className="w-full p-3 bg-slate-900 border border-gray-700 rounded"
+        />
+
+        <input
+          value={form.issuer}
+          placeholder="Issuer (eg. AWS, CNCF)"
+          onChange={(e)=>setForm({...form,issuer:e.target.value})}
+          className="w-full p-3 bg-slate-900 border border-gray-700 rounded"
+        />
+
+        <input
+          value={form.year}
+          placeholder="Year (eg. 2024)"
+          onChange={(e)=>setForm({...form,year:e.target.value})}
           className="w-full p-3 bg-slate-900 border border-gray-700 rounded"
         />
 
@@ -115,6 +133,9 @@ export default function AdminCertifications(){
                 {c.name}
               </h3>
 
+              <p className="text-gray-400 text-sm">
+                {[c.issuer, c.year].filter(Boolean).join(" · ") || "Credential"}
+              </p>
               <p className="text-gray-400 text-sm break-all">
                 {c.url}
               </p>

@@ -34,7 +34,7 @@ const authMiddleware = async (req, res, next) => {
     // This ensures deleted/deactivated admins cannot keep using
     // previously issued JWT tokens.
     const admin = await Admin.findById(decoded.id)
-      .select("_id email role isActive")
+      .select("_id email role isActive sessionVersion")
       .lean();
 
     if (!admin) {
@@ -51,12 +51,17 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
+    if ((decoded.sessionVersion || 0) !== (admin.sessionVersion || 0)) {
+      return res.status(401).json({ success: false, message: "Your session has ended. Please sign in again." });
+    }
+
     // Use the CURRENT database values rather than trusting
     // role/email values stored inside the JWT.
     req.user = {
       id: admin._id.toString(),
       role: admin.role,
       email: admin.email,
+      sessionVersion: admin.sessionVersion || 0,
     };
 
     next();

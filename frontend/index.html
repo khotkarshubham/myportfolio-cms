@@ -1,16 +1,29 @@
 <!doctype html>
-<html lang="en" class="bg-tech-bg text-gray-200">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06111c" />
     <title>Shubham Khotkar | DevOps Engineer</title>
     <meta
       name="description"
       content="Portfolio of Shubham Khotkar - DevOps & IT Infrastructure Engineer"
     />
     <link rel="icon" href="/favicon.ico" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("portfolio-theme");
+          var dark = saved ? saved === "dark" : true;
+          var theme = dark ? "dark" : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="font-sans bg-tech-bg text-gray-200">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

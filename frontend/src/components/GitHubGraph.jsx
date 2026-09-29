@@ -21,9 +21,9 @@ export default function GitHubGraph() {
       <div className="github-graph-inner">
         <GitHubCalendar
           username="khotkarshubham"
-          blockSize={12}
-          blockMargin={4}
-          fontSize={12}
+          blockSize={8}
+          blockMargin={3}
+          fontSize={10}
         />
       </div>
     </motion.div>

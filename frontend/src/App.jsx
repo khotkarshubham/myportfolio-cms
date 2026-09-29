@@ -34,7 +34,11 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
 const PageLoader = () => (
-  <section className="page-loader">Loading…</section>
+  <section className="public-page">
+    <div className="public-page-inner content-width">
+      <div className="data-empty">Loading…</div>
+    </div>
+  </section>
 );
 
 const AdminPage = ({ children }) => (
