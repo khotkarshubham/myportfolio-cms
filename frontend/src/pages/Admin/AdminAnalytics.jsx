@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import LazySection from "../../components/LazySection";
+const CountryVisitsMap = lazy(
+  () => import("../../components/CountryVisitsMap"),
+);
+import { lazy, useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -55,7 +59,7 @@ function Rankings({ title, subtitle, rows, total, country = false }) {
         <div className="cms-empty">No visits recorded in this period.</div>
       ) : (
         <div className="cms-rankings">
-          {rows.map((row, index) => (
+          {rows.slice(0, 10).map((row, index) => (
             <div key={row._id} className="cms-ranking">
               <div>
                 <span className="cms-rank-index">
@@ -504,6 +508,9 @@ export default function AdminAnalytics() {
               </div>
             </details>
           </section>
+          <LazySection label="Loading country map">
+            <CountryVisitsMap rows={data.countries} total={data.totalVisits} />
+          </LazySection>
           <div className="cms-dashboard-panels">
             <Rankings
               title="Top pages"

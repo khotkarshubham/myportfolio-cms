@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import LazySection from "../components/LazySection";
+import { lazy, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -12,12 +13,12 @@ import {
   FiMail,
   FiTool,
 } from "react-icons/fi";
-import SkillList from "../components/SkillList";
-import Certifications from "../components/Certifications";
-import CareerJourney from "../components/CareerJourney";
-import FeaturedProjects from "../components/FeaturedProjects";
-import GitHubGraph from "../components/GitHubGraph";
-import GitHubStats from "../components/GitHubStats";
+const SkillList = lazy(() => import("../components/SkillList"));
+const Certifications = lazy(() => import("../components/Certifications"));
+const CareerJourney = lazy(() => import("../components/CareerJourney"));
+const FeaturedProjects = lazy(() => import("../components/FeaturedProjects"));
+const GitHubGraph = lazy(() => import("../components/GitHubGraph"));
+const GitHubStats = lazy(() => import("../components/GitHubStats"));
 import SectionHeading from "../components/SectionHeading";
 import useSocials from "../hooks/useSocials";
 
@@ -26,7 +27,8 @@ const reveal = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
-const HERO_HEADLINE = "I build and automate infrastructure that teams can actually rely on.";
+const HERO_HEADLINE =
+  "I build and automate infrastructure that teams can actually rely on.";
 
 const sectionReveal = {
   hidden: { opacity: 0, y: 24 },
@@ -43,7 +45,9 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(true);
 
   useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
     if (reduceMotion) {
       setTypedHeadline(HERO_HEADLINE);
@@ -127,9 +131,13 @@ export default function Home() {
           icon={<FiTool />}
           title="Tools I"
           accent="work with."
-          aside={<span className="section-note">Curated from the portfolio CMS</span>}
+          aside={
+            <span className="section-note">Curated from the portfolio CMS</span>
+          }
         />
-        <SkillList />
+        <LazySection label="Loading skill list">
+          <SkillList />
+        </LazySection>
       </motion.section>
 
       <motion.section
@@ -139,7 +147,9 @@ export default function Home() {
         whileInView="visible"
         viewport={{ once: true, amount: 0.08 }}
       >
-        <CareerJourney headingIcon={<FiBriefcase />} />
+        <LazySection label="Loading career journey">
+          <CareerJourney headingIcon={<FiBriefcase />} />
+        </LazySection>
       </motion.section>
 
       <motion.section
@@ -149,7 +159,9 @@ export default function Home() {
         whileInView="visible"
         viewport={{ once: true, amount: 0.14 }}
       >
-        <Certifications headingIcon={<FiAward />} />
+        <LazySection label="Loading certifications">
+          <Certifications headingIcon={<FiAward />} />
+        </LazySection>
       </motion.section>
 
       <motion.section
@@ -169,7 +181,9 @@ export default function Home() {
             </Link>
           }
         />
-        <FeaturedProjects />
+        <LazySection label="Loading featured projects">
+          <FeaturedProjects />
+        </LazySection>
       </motion.section>
 
       <motion.section
@@ -184,23 +198,29 @@ export default function Home() {
           title="Open-source"
           accent="footprint."
           aside={
-            socials.github && <a
-              href={socials.github}
-              target="_blank"
-              rel="noreferrer"
-              className="text-link"
-            >
-              GitHub profile <FiExternalLink />
-            </a>
+            socials.github && (
+              <a
+                href={socials.github}
+                target="_blank"
+                rel="noreferrer"
+                className="text-link"
+              >
+                GitHub profile <FiExternalLink />
+              </a>
+            )
           }
         />
 
         <div className="github-dashboard">
           <div className="github-graph-panel">
-            <GitHubGraph />
+            <LazySection label="Loading git hub graph">
+              <GitHubGraph />
+            </LazySection>
           </div>
           <div className="github-stats-panel">
-            <GitHubStats />
+            <LazySection label="Loading git hub stats">
+              <GitHubStats />
+            </LazySection>
           </div>
         </div>
       </motion.section>
@@ -217,7 +237,8 @@ export default function Home() {
             <FiMail />
           </span>
           <h2>
-            Have a system <span className="section-heading-accent">worth improving?</span>
+            Have a system{" "}
+            <span className="section-heading-accent">worth improving?</span>
           </h2>
           <p>
             Let&apos;s talk about the infrastructure, automation or platform

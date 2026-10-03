@@ -150,7 +150,7 @@ export const getAnalytics = async (req, res) => {
           },
         },
         { $sort: { count: -1, _id: 1 } },
-        { $limit: 10 },
+        ...(field === "page" ? [{ $limit: 10 }] : []),
       ]);
     const previous = {
       ...publicVisits,

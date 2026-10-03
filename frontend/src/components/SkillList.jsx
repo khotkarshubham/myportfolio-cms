@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import API from "../services/api";
-import { skillIcons } from "../utils/skillIcons";
+import SkillIcon from "./SkillIcon";
+import LoadingSkeleton from "./LoadingSkeleton";
 
 const grid = {
   hidden: {},
@@ -47,7 +48,7 @@ export default function SkillList() {
   }, []);
 
   if (status === "loading") {
-    return <div className="data-empty">Loading tools…</div>;
+    return <LoadingSkeleton compact label="Loading tools" />;
   }
 
   if (status === "error") {
@@ -67,8 +68,6 @@ export default function SkillList() {
       viewport={{ once: true, amount: 0.18 }}
     >
       {skills.map((skill) => {
-        const Icon = skillIcons[skill.name?.toLowerCase()];
-
         return (
           <motion.div
             key={skill._id || skill.name}
@@ -78,7 +77,7 @@ export default function SkillList() {
             transition={{ duration: 0.18 }}
           >
             <span className="skill-icon" aria-hidden="true">
-              {Icon ? <Icon /> : "•"}
+              <SkillIcon name={skill.name} />
             </span>
 
             <span className="skill-name">{skill.name}</span>

@@ -4,10 +4,25 @@ import {
   FaLinux,
   FaPython,
   FaWindows,
-  FaMicrosoft
+  FaMicrosoft,
 } from "react-icons/fa";
 
 import {
+  SiProxmox,
+  SiJavascript,
+  SiTypescript,
+  SiUbuntu,
+  SiDebian,
+  SiMysql,
+  SiGitlab,
+  SiArgo,
+  SiRedhat,
+  SiRedhatopenshift,
+  SiOpenstack,
+  SiHtml5,
+  SiCss,
+  SiCplusplus,
+  SiDotnet,
   SiKubernetes,
   SiTerraform,
   SiPrometheus,
@@ -34,13 +49,12 @@ import {
   SiGooglecloud,
   SiDigitalocean,
   SiCloudflare,
-  SiRabbitmq
+  SiRabbitmq,
 } from "react-icons/si";
 
 import { VscAzure, VscTerminalLinux } from "react-icons/vsc";
 
 export const skillIcons = {
-
   /* CLOUD */
 
   aws: FaAws,
@@ -110,10 +124,24 @@ export const skillIcons = {
   vmware: SiVmware,
   vsphere: SiVmware,
   esxi: SiVmware,
-  proxmox: SiVmware,
+  proxmox: SiProxmox,
   hyperv: FaWindows,
 
   /* NETWORKING */
 
-  cisco: SiCisco
+  javascript: SiJavascript,
+  typescript: SiTypescript,
+  ubuntu: SiUbuntu,
+  debian: SiDebian,
+  mysql: SiMysql,
+  gitlab: SiGitlab,
+  argo: SiArgo,
+  redhat: SiRedhat,
+  redhatopenshift: SiRedhatopenshift,
+  openstack: SiOpenstack,
+  html: SiHtml5,
+  css: SiCss,
+  "c++": SiCplusplus,
+  dotnet: SiDotnet,
+  cisco: SiCisco,
 };

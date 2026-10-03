@@ -98,6 +98,9 @@ test('analytics uses the selected period for counts and rankings, and separates 
   const res = response(); await getAnalytics({ query: { range: '7' } }, res);
   assert.equal(res.code, 200); assert.equal(res.body.chart.length, 7); assert.equal(res.body.uniqueVisitors, 2); assert.equal(res.body.activeVisitors, 2); assert.equal(res.body.range, '7');
   assert.ok(filters.every(filter => filter.createdAt.$gte instanceof Date));
-  const rankings = pipelines.filter(p => p.at(-1).$limit); assert.equal(rankings.length, 2); assert.ok(rankings.every(p => p[0].$match.createdAt.$gte instanceof Date));
+  const rankings = pipelines.filter(p => p.some(stage => stage.$group?._id?.$ifNull)); assert.equal(rankings.length, 2); assert.ok(rankings.every(p => p[0].$match.createdAt.$gte instanceof Date));
+  const countries = rankings.find(p => p[1].$group._id.$ifNull[0] === "$country");
+  assert.ok(!countries.some(stage => stage.$limit), "map receives all countries");
+  assert.equal(rankings.find(p => p[1].$group._id.$ifNull[0] === "$page").at(-1).$limit, 10);
   const invalid = response(); await getAnalytics({ query: { range: 'invalid' } }, invalid); assert.equal(invalid.code, 400);
 });
