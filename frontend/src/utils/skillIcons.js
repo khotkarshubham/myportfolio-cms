@@ -1,3 +1,4 @@
+import { FiCode, FiCloud, FiServer, FiDatabase, FiTool } from "react-icons/fi";
 import {
   FaAws,
   FaDocker,
@@ -55,6 +56,11 @@ import {
 import { VscAzure, VscTerminalLinux } from "react-icons/vsc";
 
 export const skillIcons = {
+  "generic-code": FiCode,
+  "generic-cloud": FiCloud,
+  "generic-server": FiServer,
+  "generic-database": FiDatabase,
+  "generic-tool": FiTool,
   /* CLOUD */
 
   aws: FaAws,

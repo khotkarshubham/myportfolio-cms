@@ -1,3 +1,4 @@
+import LoadingSkeleton from "./LoadingSkeleton";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FiArrowUpRight } from "react-icons/fi";
@@ -48,7 +49,7 @@ export default function FeaturedProjects({ limit = 4 }) {
   }, [limit]);
 
   if (status === "loading") {
-    return <div className="data-empty">Loading projects…</div>;
+    return <LoadingSkeleton compact label="Loading projects" />;
   }
 
   if (status === "error") {
@@ -56,7 +57,11 @@ export default function FeaturedProjects({ limit = 4 }) {
   }
 
   if (!projects.length) {
-    return <div className="data-empty">Projects will appear here once they are published.</div>;
+    return (
+      <div className="data-empty">
+        Projects will appear here once they are published.
+      </div>
+    );
   }
 
   return (

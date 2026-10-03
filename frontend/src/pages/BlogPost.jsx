@@ -1,3 +1,4 @@
+import LoadingSkeleton from "../components/LoadingSkeleton";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FiArrowLeft, FiGitPullRequest } from "react-icons/fi";
@@ -20,12 +21,19 @@ export default function BlogPost() {
       setBlog(null);
 
       try {
-        const response = await API.get(`/public/blog/${encodeURIComponent(slug)}`);
+        const response = await API.get(
+          `/public/blog/${encodeURIComponent(slug)}`,
+        );
         if (!isMounted) return;
 
         const blogData = response?.data;
 
-        if (!blogData || typeof blogData !== "object" || Array.isArray(blogData) || !blogData.title) {
+        if (
+          !blogData ||
+          typeof blogData !== "object" ||
+          Array.isArray(blogData) ||
+          !blogData.title
+        ) {
           setError("Article not found.");
           return;
         }
@@ -62,9 +70,7 @@ export default function BlogPost() {
   if (loading) {
     return (
       <PublicPage>
-        <div className="data-empty" role="status" aria-live="polite">
-          Loading article…
-        </div>
+        <LoadingSkeleton compact label="Loading article" />
       </PublicPage>
     );
   }
@@ -77,7 +83,8 @@ export default function BlogPost() {
         </span>
         <h1 className="public-title">Article not found</h1>
         <p className="public-lede">
-          {error || "The article you're looking for doesn't exist or is no longer available."}
+          {error ||
+            "The article you're looking for doesn't exist or is no longer available."}
         </p>
         <Link to="/blog" className="button button-ghost">
           <FiArrowLeft />

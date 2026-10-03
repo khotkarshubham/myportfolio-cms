@@ -1,3 +1,4 @@
+import LoadingSkeleton from "../components/LoadingSkeleton";
 import { useEffect, useState } from "react";
 import { FiArrowUpRight, FiLayers } from "react-icons/fi";
 import API from "../services/api";
@@ -11,7 +12,11 @@ export default function PublicProjects() {
   useEffect(() => {
     API.get("/public/projects")
       .then((res) => {
-        setProjects(Array.isArray(res.data) ? res.data.filter((item) => item && item.title) : []);
+        setProjects(
+          Array.isArray(res.data)
+            ? res.data.filter((item) => item && item.title)
+            : [],
+        );
         setStatus("ready");
       })
       .catch(() => {
@@ -26,27 +31,51 @@ export default function PublicProjects() {
         <FiLayers />
       </span>
       <h1 className="public-title">
-        Selected <span className="section-heading-accent">engineering work.</span>
+        Selected{" "}
+        <span className="section-heading-accent">engineering work.</span>
       </h1>
       <p className="public-lede">
-        A focused collection of projects spanning cloud infrastructure, automation,
-        delivery and practical engineering.
+        A focused collection of projects spanning cloud infrastructure,
+        automation, delivery and practical engineering.
       </p>
-      {status === "loading" && <div className="data-empty">Loading projects…</div>}
-      {status === "error" && <div className="data-empty">Unable to load projects right now.</div>}
+      {status === "loading" && (
+        <LoadingSkeleton compact label="Loading projects" />
+      )}
+      {status === "error" && (
+        <div className="data-empty">Unable to load projects right now.</div>
+      )}
       {status === "ready" && !projects.length && (
-        <div className="data-empty">Projects will appear here once they are published.</div>
+        <div className="data-empty">
+          Projects will appear here once they are published.
+        </div>
       )}
       <div className="repo-grid">
         {projects.map((project) => (
           <article key={project._id} className="repo-card">
-            {project.image && <img src={assetUrl(project.image)} alt={project.title} className="repo-image" />}
-            <div className="repo-top"><span>Project</span><FiArrowUpRight /></div>
+            {project.image && (
+              <img
+                src={assetUrl(project.image)}
+                alt={project.title}
+                className="repo-image"
+              />
+            )}
+            <div className="repo-top">
+              <span>Project</span>
+              <FiArrowUpRight />
+            </div>
             <h3>{project.title}</h3>
             <p>{project.description}</p>
             <div className="repo-meta">
-              {project.demo && <a href={project.demo} target="_blank" rel="noreferrer">Live demo ↗</a>}
-              {project.github && <a href={project.github} target="_blank" rel="noreferrer">Source ↗</a>}
+              {project.demo && (
+                <a href={project.demo} target="_blank" rel="noreferrer">
+                  Live demo ↗
+                </a>
+              )}
+              {project.github && (
+                <a href={project.github} target="_blank" rel="noreferrer">
+                  Source ↗
+                </a>
+              )}
             </div>
           </article>
         ))}

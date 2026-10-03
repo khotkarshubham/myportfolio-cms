@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import API from "../../services/api";
 import SkillIcon, { hasSkillIcon } from "../../components/SkillIcon";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
+import SkillIconSelector from "../../components/SkillIconSelector";
 
 export default function Skills() {
   const [skills, setSkills] = useState([]);
   const [name, setName] = useState("");
+  const [iconKey, setIconKey] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [editIconKey, setEditIconKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -34,12 +38,35 @@ export default function Skills() {
     setError("");
     setNotice("");
     try {
-      await API.post("/admin/skills", { name: name.trim() });
+      await API.post("/admin/skills", { name: name.trim(), iconKey });
       setName("");
+      setIconKey("");
       setNotice("Skill added.");
       await loadSkills();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to add skill.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const saveIcon = async (skill) => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await API.patch(`/admin/skills/${skill._id}`, {
+        iconKey: editIconKey,
+      });
+      setSkills((current) =>
+        current.map((item) => (item._id === skill._id ? res.data : item)),
+      );
+      setEditing(null);
+      setNotice("Skill icon updated.");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Unable to save icon. Please try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -105,19 +132,27 @@ export default function Skills() {
           </div>
           <div className="skill-preview">
             <span className="skill-icon">
-              <SkillIcon name={name} />
+              <SkillIcon name={name} iconKey={iconKey} />
             </span>
             <div>
               <strong>{name.trim() || "Your skill preview"}</strong>
               <p className="cms-muted">
-                {!name.trim()
-                  ? "Enter a tool name to preview its icon."
-                  : hasSkillIcon(name)
-                    ? "Brand icon matched. This icon will appear on your portfolio."
-                    : "No exact brand match. A neutral code icon will be used."}
+                {iconKey
+                  ? "Manual icon selected. This icon will appear on your portfolio."
+                  : !name.trim()
+                    ? "Enter a tool name to preview its icon."
+                    : hasSkillIcon(name)
+                      ? "Brand icon matched. This icon will appear on your portfolio."
+                      : "No exact brand match. Choose an icon below or keep the neutral code icon."}
               </p>
             </div>
           </div>
+          <SkillIconSelector
+            name={name}
+            value={iconKey}
+            onChange={setIconKey}
+            disabled={busy}
+          />
         </form>
       )}
       {loading ? (
@@ -125,11 +160,27 @@ export default function Skills() {
       ) : (
         <div className="admin-skills-grid">
           {skills.map((skill) => (
-            <div key={skill._id} className="cms-panel admin-skill-item">
+            <div
+              key={skill._id}
+              className="cms-panel admin-skill-item manual-icon-card"
+            >
               <span className="skill-icon">
-                <SkillIcon name={skill.name} />
+                <SkillIcon name={skill.name} iconKey={skill.iconKey} />
               </span>
               <strong>{skill.name}</strong>
+              {canEdit && (
+                <button
+                  className="cms-button"
+                  disabled={busy}
+                  onClick={() => {
+                    setEditing(skill._id);
+                    setEditIconKey(skill.iconKey || "");
+                  }}
+                  aria-label={`Change icon for ${skill.name}`}
+                >
+                  Icon
+                </button>
+              )}
               {canEdit && (
                 <button
                   className="cms-button"
@@ -139,6 +190,32 @@ export default function Skills() {
                 >
                   Delete
                 </button>
+              )}
+              {canEdit && editing === skill._id && (
+                <div className="skill-icon-edit">
+                  <SkillIconSelector
+                    name={skill.name}
+                    value={editIconKey}
+                    onChange={setEditIconKey}
+                    disabled={busy}
+                  />
+                  <div className="skill-editor-input">
+                    <button
+                      className="cms-button cms-button-primary"
+                      disabled={busy}
+                      onClick={() => saveIcon(skill)}
+                    >
+                      {busy ? "Saving…" : "Save icon"}
+                    </button>
+                    <button
+                      className="cms-button"
+                      disabled={busy}
+                      onClick={() => setEditing(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ))}

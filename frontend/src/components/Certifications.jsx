@@ -1,3 +1,4 @@
+import LoadingSkeleton from "./LoadingSkeleton";
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { FiArrowUpRight, FiAward } from "react-icons/fi";
@@ -23,7 +24,11 @@ const mark = (cert) => {
   const source = cert.issuer || cert.name || "C";
   const words = source.split(/\s+/).filter(Boolean);
   if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-  return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+  return words
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
 };
 
 const credentialHref = (url) => {
@@ -79,16 +84,22 @@ export default function Certifications({ headingIcon = <FiAward /> }) {
 
   if (status === "loading") {
     return (
-      <section className="credential-block" aria-labelledby="credentials-heading">
+      <section
+        className="credential-block"
+        aria-labelledby="credentials-heading"
+      >
         {heading}
-        <div className="data-empty">Loading credentials…</div>
+        <LoadingSkeleton compact label="Loading credentials" />
       </section>
     );
   }
 
   if (status === "error") {
     return (
-      <section className="credential-block" aria-labelledby="credentials-heading">
+      <section
+        className="credential-block"
+        aria-labelledby="credentials-heading"
+      >
         {heading}
         <div className="data-empty">Unable to load credentials right now.</div>
       </section>
@@ -97,9 +108,14 @@ export default function Certifications({ headingIcon = <FiAward /> }) {
 
   if (!certs.length) {
     return (
-      <section className="credential-block" aria-labelledby="credentials-heading">
+      <section
+        className="credential-block"
+        aria-labelledby="credentials-heading"
+      >
         {heading}
-        <div className="data-empty">Credentials will appear here once they are published.</div>
+        <div className="data-empty">
+          Credentials will appear here once they are published.
+        </div>
       </section>
     );
   }
@@ -131,17 +147,28 @@ export default function Certifications({ headingIcon = <FiAward /> }) {
             >
               <div className="credential-card-top">
                 {cert.file ? (
-                  <img src={assetUrl(cert.file)} alt="" className="credential-mark" />
+                  <img
+                    src={assetUrl(cert.file)}
+                    alt=""
+                    className="credential-mark"
+                  />
                 ) : (
-                  <span className="credential-mark is-fallback" aria-hidden="true">
+                  <span
+                    className="credential-mark is-fallback"
+                    aria-hidden="true"
+                  >
                     {mark(cert)}
                   </span>
                 )}
                 <span className="credential-badge">Certified</span>
               </div>
               <strong>{cert.name}</strong>
-              <span className="credential-org">{cert.issuer || "Verified credential"}</span>
-              {cert.year && <span className="credential-issued">Issued {cert.year}</span>}
+              <span className="credential-org">
+                {cert.issuer || "Verified credential"}
+              </span>
+              {cert.year && (
+                <span className="credential-issued">Issued {cert.year}</span>
+              )}
               {href ? (
                 <span className="credential-link">
                   View credential <FiArrowUpRight />

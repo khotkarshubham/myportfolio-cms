@@ -77,7 +77,7 @@ export default function SkillList() {
             transition={{ duration: 0.18 }}
           >
             <span className="skill-icon" aria-hidden="true">
-              <SkillIcon name={skill.name} />
+              <SkillIcon name={skill.name} iconKey={skill.iconKey} />
             </span>
 
             <span className="skill-name">{skill.name}</span>

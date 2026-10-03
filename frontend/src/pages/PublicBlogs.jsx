@@ -1,3 +1,4 @@
+import LoadingSkeleton from "../components/LoadingSkeleton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowUpRight, FiGitPullRequest } from "react-icons/fi";
@@ -55,9 +56,7 @@ export default function PublicBlogs() {
       </p>
 
       {status === "loading" && (
-        <div className="data-empty" role="status" aria-live="polite">
-          Loading writing…
-        </div>
+        <LoadingSkeleton compact label="Loading writing" />
       )}
 
       {status === "error" && (

@@ -5,7 +5,7 @@ import { profileUpload, projectUpload, blogUpload, certificationUpload, experien
 
 import { createProject, updateProject, deleteProject } from "../controllers/projectController.js";
 import { createBlog, updateBlog, deleteBlog, getAdminBlogs } from "../controllers/blogController.js";
-import { createSkill, deleteSkill } from "../controllers/skillController.js";
+import { createSkill, deleteSkill, updateSkillIcon } from "../controllers/skillController.js";
 import { getContacts, deleteContact, updateContact } from "../controllers/contactController.js";
 import { updateProfile } from "../controllers/profileController.js";
 import { createCertification, updateCertification, deleteCertification } from "../controllers/certificationController.js";
@@ -25,6 +25,7 @@ router.put("/blogs/:id", authMiddleware, canEditContent, blogUpload, updateBlog)
 router.delete("/blogs/:id", authMiddleware, canEditContent, deleteBlog);
 
 router.post("/skills", authMiddleware, canEditContent, createSkill);
+router.patch("/skills/:id", authMiddleware, canEditContent, updateSkillIcon);
 router.delete("/skills/:id", authMiddleware, canEditContent, deleteSkill);
 
 router.get("/contacts", authMiddleware, canReadAdmin, getContacts);
