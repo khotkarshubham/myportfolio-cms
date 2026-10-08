@@ -13,7 +13,7 @@ import { analyticsWindow, fillAnalyticsDays, normalizePublicPage } from '../util
 import { validPassword } from '../utils/passwordPolicy.js';
 const id = '507f1f77bcf86cd799439011', targetId = '507f1f77bcf86cd799439012';
 const actor = { id, role: 'superadmin', email: 'owner@example.com' };
-const response = () => ({ code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
+const response = () => ({ code: 200, cookie(name, token, options) { this.authToken = token; this.cookieOptions = options; return this; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
 const secret = 'test-only-secret-not-a-deployment-key-123456';
 function setSecret(t) { const old = process.env.JWT_SECRET; process.env.JWT_SECRET = secret; t.after(() => { if (old === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = old; }); }
 
@@ -32,7 +32,7 @@ test('incorrect current password returns a form error, without invalidating the 
   const res = response(); await changePassword({ user: actor, body: { oldPassword: 'wrong-password', newPassword: 'a-new-passphrase' } }, res);
   assert.equal(res.code, 400); assert.match(res.body.message, /incorrect/); assert.equal(update.mock.calls.length, 0);
 });
-test('password change uses conditional update, rotates sessions and returns a replacement token', async t => {
+test('password change uses conditional update, rotates sessions and sets a replacement cookie', async t => {
   setSecret(t); let mutation, condition;
   t.mock.method(Admin, 'findById', async () => ({ _id: id, email: actor.email, isActive: true, password: 'oldhash' }));
   t.mock.method(bcrypt, 'compare', async () => true);
@@ -41,7 +41,7 @@ test('password change uses conditional update, rotates sessions and returns a re
   t.mock.method(Admin, 'findOneAndUpdate', async (filter, changes) => { condition = filter; mutation = changes; return { _id: id, email: actor.email, role: 'superadmin', sessionVersion: 1 }; });
   const res = response(); await changePassword({ user: actor, body: { oldPassword: 'old-passphrase', newPassword: 'new-passphrase' } }, res);
   assert.equal(res.code, 200); assert.equal(condition.password, 'oldhash'); assert.equal(mutation.$inc.sessionVersion, 1); assert.equal(mutation.$set.password, 'newhash');
-  assert.equal(jwt.verify(res.body.data.token, secret).sessionVersion, 1);
+  assert.equal(jwt.verify(res.authToken, secret).sessionVersion, 1);
   assert.ok(!JSON.stringify(res.body).includes('newhash'));
 });
 test('authentication rejects pre-change tokens and accepts a fresh token', async t => {
@@ -49,9 +49,9 @@ test('authentication rejects pre-change tokens and accepts a fresh token', async
   t.mock.method(Admin, 'findById', () => ({ select: () => ({ lean: async () => ({ _id: id, email: actor.email, isActive: true, role: 'superadmin', sessionVersion: 2 }) }) }));
   let continued = false;
   const old = jwt.sign({ id, sessionVersion: 1 }, secret), fresh = jwt.sign({ id, sessionVersion: 2 }, secret);
-  let res = response(); await authMiddleware({ headers: { authorization: `Bearer ${old}` } }, res, () => { continued = true; });
+  let res = response(); await authMiddleware({ cookies: { token: old } }, res, () => { continued = true; });
   assert.equal(res.code, 401); assert.equal(continued, false);
-  res = response(); await authMiddleware({ headers: { authorization: `Bearer ${fresh}` } }, res, () => { continued = true; }); assert.equal(continued, true);
+  res = response(); await authMiddleware({ cookies: { token: fresh } }, res, () => { continued = true; }); assert.equal(continued, true);
 });
 test('user creation rejects invalid roles and overlong passwords before hashing', async t => {
   const hash = t.mock.method(bcrypt, 'hash', async () => 'hash');

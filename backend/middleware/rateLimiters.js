@@ -36,7 +36,7 @@ export const passwordLimiter = rateLimit({
  * Prevents spam submissions while allowing normal portfolio traffic.
  */
 export const contactLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 60 * 60 * 1000,
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,

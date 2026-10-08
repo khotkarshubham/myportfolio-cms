@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
+  withCredentials: true,
   baseURL: import.meta.env.VITE_API_URL,
 });
 
@@ -17,15 +18,13 @@ const normalizeResponse = (response) => {
   return response;
 };
 
-/* AUTO ADD TOKEN */
-
+// Remove legacy credentials during migration; JWTs are now HttpOnly cookies.
+localStorage.removeItem("admin_token");
+sessionStorage.removeItem("admin_token");
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (!["get", "head", "options"].includes((config.method || "get").toLowerCase())) {
+    config.headers["X-CSRF-Protection"] = "1";
   }
-
   return config;
 });
 
@@ -54,13 +53,5 @@ API.interceptors.response.use(normalizeResponse, (error) => {
 
   return Promise.reject(error);
 });
-
-export const setToken = (token) => {
-  if (token) {
-    API.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  } else {
-    delete API.defaults.headers.common["Authorization"];
-  }
-};
 
 export default API;

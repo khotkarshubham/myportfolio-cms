@@ -30,7 +30,7 @@ const contactSchema = new mongoose.Schema(
       required: true,
       trim: true,
       minlength: 1,
-      maxlength: 5000
+      maxlength: 2000
     }
   },
   {

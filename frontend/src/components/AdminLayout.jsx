@@ -18,7 +18,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import ThemeToggle from "./ThemeToggle";
-import { setToken } from "../services/api";
+import API from "../services/api";
 
 export default function AdminLayout({ children }) {
   const location = useLocation();
@@ -77,12 +77,15 @@ export default function AdminLayout({ children }) {
 
   const closeMobileMenu = () => setMobileOpen(false);
 
-  const logout = () => {
-    setToken(null);
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_role");
-    localStorage.removeItem("admin_email");
-    navigate("/admin/login");
+  const logout = async () => {
+    try {
+      await API.post("/auth/logout");
+      localStorage.removeItem("admin_role");
+      localStorage.removeItem("admin_email");
+      navigate("/admin/login");
+    } catch {
+      window.alert("Unable to sign out. Please try again.");
+    }
   };
 
   const renderMenu = (mobile = false) => (

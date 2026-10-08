@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API, { setToken } from "../../services/api";
+import API from "../../services/api";
 import ThemeToggle from "../../components/ThemeToggle";
 
 export default function Login() {
@@ -21,18 +21,15 @@ export default function Login() {
         email: email.trim(),
         password,
       });
-      const token = res.data.token;
       const admin = res.data.admin;
 
-      if (!token || !admin) {
+      if (!admin) {
         setError("Login failed. Please try again.");
         return;
       }
 
-      localStorage.setItem("admin_token", token);
       localStorage.setItem("admin_role", admin.role);
       localStorage.setItem("admin_email", admin.email);
-      setToken(token);
       navigate("/admin", { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Invalid email or password.");

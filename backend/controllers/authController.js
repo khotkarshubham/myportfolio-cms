@@ -1,3 +1,4 @@
+import { setAuthCookie, authCookieOptions } from "../utils/authCookie.js";
 import Admin from "../models/Admin.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -153,8 +154,8 @@ export const loginAdmin = async (req, res) => {
       email: admin.email,
     });
 
+    setAuthCookie(res, token);
     return sendSuccess(res, {
-      token,
       expiresIn: 3600,
       admin: {
         id: admin._id,
@@ -265,10 +266,10 @@ export const changePassword = async (req, res) => {
       email: admin.email,
     });
 
+    setAuthCookie(res, createAccessToken(updated));
     return sendSuccess(res, {
       message:
         "Password changed successfully. Other sessions have been signed out.",
-      token: createAccessToken(updated),
     });
   } catch (error) {
     console.error("Change password error:", error);
@@ -329,12 +330,17 @@ export const revokeOtherSessions = async (req, res) => {
       entity: "ADMIN",
       entityId: admin._id,
     });
+    setAuthCookie(res, createAccessToken(updated));
     return sendSuccess(res, {
-      token: createAccessToken(updated),
       message:
         "Other sessions will be signed out on their next request. This session remains active.",
     });
   } catch {
     return sendError(res, "Unable to revoke sessions", 500);
   }
+};
+
+export const logoutAdmin = (req, res) => {
+  res.clearCookie("token", authCookieOptions());
+  return sendSuccess(res, { message: "Signed out successfully" });
 };

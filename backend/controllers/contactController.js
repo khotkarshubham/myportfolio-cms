@@ -26,6 +26,13 @@ const isValidEmail = (email) => {
 // Create Contact
 export const createContact = async (req, res) => {
   try {
+    const fields = { name: 100, email: 254, message: 2000 };
+    for (const [field, max] of Object.entries(fields)) {
+      const value = req.body?.[field];
+      if (typeof value !== "string" || !value.trim() || value.length > max) {
+        return sendError(res, `${field} is required and must be at most ${max} characters`, 400);
+      }
+    }
     const name = sanitizeText(req.body?.name, 100);
     const email = normalizeEmail(req.body?.email);
     const message = sanitizeText(req.body?.message, 2000);

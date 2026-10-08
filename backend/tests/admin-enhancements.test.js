@@ -24,7 +24,7 @@ const actor = {
   sessionVersion: 3,
 };
 const response = () => ({
-  code: 200,
+  code: 200, cookie(name, token, options) { this.authToken = token; this.cookieOptions = options; return this; },
   status(code) {
     this.code = code;
     return this;
@@ -63,7 +63,8 @@ test("existing shorter passwords can authenticate while new password policy stay
     res,
   );
   assert.equal(res.code, 200);
-  assert.ok(res.body.data.token);
+  assert.ok(res.authToken);
+  assert.equal(res.body.data.token, undefined);
   const invalid = response();
   await changePassword(
     { user: actor, body: { oldPassword: "legacy123", newPassword: "short" } },
@@ -71,7 +72,7 @@ test("existing shorter passwords can authenticate while new password policy stay
   );
   assert.equal(invalid.code, 400);
 });
-test("revoking sessions verifies password and returns only a new token with incremented version", async (t) => {
+test("revoking sessions verifies password and sets a new cookie with incremented version", async (t) => {
   secret(t);
   let filter, changes;
   t.mock.method(Admin, "findById", async () => account);
@@ -91,7 +92,7 @@ test("revoking sessions verifies password and returns only a new token with incr
   assert.deepEqual(filter.$or, [{ sessionVersion: 3 }]);
   assert.equal(changes.$inc.sessionVersion, 1);
   assert.equal(
-    jwt.verify(res.body.data.token, process.env.JWT_SECRET).sessionVersion,
+    jwt.verify(res.authToken, process.env.JWT_SECRET).sessionVersion,
     4,
   );
   assert.ok(!JSON.stringify(res.body).includes("test-hash"));

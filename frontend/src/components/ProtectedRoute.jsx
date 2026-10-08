@@ -1,34 +1,25 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-
-const decodeJwt = (token) => {
-  if (!token) return null;
-
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = typeof window !== "undefined"
-      ? window.atob(normalized)
-      : Buffer.from(normalized, "base64").toString("utf8");
-
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
-};
+import API from "../services/api";
 
 export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("admin_token");
-  const role = localStorage.getItem("admin_role");
-  const payload = decodeJwt(token);
-  const hasValidSession = Boolean(token && payload && (payload.role === "superadmin" || payload.role === "editor" || payload.role === "viewer") && (!payload.exp || payload.exp * 1000 > Date.now()));
-  const hasRole = ["superadmin", "editor", "viewer"].includes(role);
-
-  if (!hasValidSession || !hasRole) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
+  const [status, setStatus] = useState("loading");
+  useEffect(() => {
+    let active = true;
+    API.get("/auth/me").then(({ data }) => {
+      if (!active) return;
+      if (!["superadmin", "editor", "viewer"].includes(data.role)) {
+        setStatus("unauthorized");
+        return;
+      }
+      localStorage.setItem("admin_role", data.role);
+      localStorage.setItem("admin_email", data.email);
+      setStatus("authenticated");
+    }).catch(() => { if (active) setStatus("error"); });
+    return () => { active = false; };
+  }, []);
+  if (status === "loading") return <p role="status">Checking your session...</p>;
+  if (status === "error") return <p role="alert">Unable to verify your session. Please reload to retry.</p>;
+  if (status === "unauthorized") return <Navigate to="/admin/login" replace />;
   return children;
 }

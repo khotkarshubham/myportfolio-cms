@@ -1,3 +1,5 @@
+import cookieParser from "cookie-parser";
+import { csrfProtection } from "./middleware/csrfMiddleware.js";
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -151,7 +153,8 @@ const corsOptions = {
 
   allowedHeaders: [
     "Content-Type",
-    "Authorization"
+    "Authorization",
+    "X-CSRF-Protection"
   ]
 };
 
@@ -171,6 +174,17 @@ app.use(
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+
+app.use(cookieParser());
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+app.use("/api/auth", csrfProtection(allowedOrigins));
+app.use("/api", (req, res, next) => {
+  if (req.cookies?.token) return csrfProtection(allowedOrigins)(req, res, next);
+  next();
+});
 
 /* ================= BODY PARSER ================= */
 

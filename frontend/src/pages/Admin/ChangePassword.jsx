@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaShieldAlt, FaKey, FaLaptop } from "react-icons/fa";
-import API, { setToken } from "../../services/api";
+import API from "../../services/api";
 import {
   PasswordField,
   PasswordRequirements,
@@ -33,12 +33,6 @@ export default function ChangePassword() {
   useEffect(() => {
     loadAccount();
   }, []);
-  const keepSession = (data) => {
-    if (data.token) {
-      localStorage.setItem("admin_token", data.token);
-      setToken(data.token);
-    }
-  };
   const change = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }));
     setNotice("");
@@ -59,7 +53,6 @@ export default function ChangePassword() {
         oldPassword: form.oldPassword,
         newPassword: form.newPassword,
       });
-      keepSession(data);
       setForm({ oldPassword: "", newPassword: "", confirm: "" });
       setNotice(data.message || "Password updated successfully.");
       loadAccount();
@@ -81,7 +74,6 @@ export default function ChangePassword() {
       const { data } = await API.post("/auth/revoke-sessions", {
         currentPassword: sessionPassword,
       });
-      keepSession(data);
       setSessionPassword("");
       setNotice(data.message);
     } catch (err) {

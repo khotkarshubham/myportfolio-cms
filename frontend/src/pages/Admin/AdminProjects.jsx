@@ -12,7 +12,6 @@ export default function AdminProjects() {
   const [demo, setDemo] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("admin_token");
 
   const load = async () => {
 
@@ -40,12 +39,7 @@ export default function AdminProjects() {
 
       await API.post(
         "/admin/projects",
-        { title, description, github, demo },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { title, description, github, demo }
       );
 
       setTitle("");
@@ -67,11 +61,7 @@ export default function AdminProjects() {
 
     try {
 
-      await API.delete(`/admin/projects/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await API.delete(`/admin/projects/${id}`);
 
       load();
 
