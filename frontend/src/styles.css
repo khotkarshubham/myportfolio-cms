@@ -80,14 +80,14 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background-image: var(--hero-dark-image, url('/home-dark-mode.webp'));
+    background-image: url('https://s3.ap-south-1.amazonaws.com/khotkarshubham.in/images/hero/home-dark-mode.webp');
     background-position: center top;
     background-size: cover;
     background-repeat: no-repeat;
     opacity: .075;
   }
   html[data-theme="light"] .public-shell::before {
-    background-image: var(--hero-light-image, url('/home-light-mode.webp'));
+    background-image: url('https://s3.ap-south-1.amazonaws.com/khotkarshubham.in/images/hero/home-light-mode.webp');
     opacity: .07;
   }
   .public-shell > * {
@@ -368,8 +368,8 @@
   }
 
   /* Home hero */
-  .home-hero { min-height: 100vh; position: relative; display: grid; align-items: center; isolation: isolate; background-image: var(--hero-dark-image, url('/home-dark-mode.webp')); background-position: center top; background-size: cover; background-attachment: fixed; }
-  html[data-theme="light"] .home-hero { background-image: var(--hero-light-image, url('/home-light-mode.webp')); }
+  .home-hero { min-height: 100vh; position: relative; display: grid; align-items: center; isolation: isolate; background-image: url('https://s3.ap-south-1.amazonaws.com/khotkarshubham.in/images/hero/home-dark-mode.webp'); background-position: center top; background-size: cover; background-attachment: fixed; }
+  html[data-theme="light"] .home-hero { background-image: url('https://s3.ap-south-1.amazonaws.com/khotkarshubham.in/images/hero/home-light-mode.webp'); }
   .home-hero-shade { position: absolute; inset: 0; z-index: -1; background: var(--hero-overlay); }
   .home-hero-grid { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(0,0,0,.10), transparent 40%, rgba(0,0,0,.08)); pointer-events: none; }
   .home-hero-content {
