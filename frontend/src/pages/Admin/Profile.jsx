@@ -17,6 +17,8 @@ export default function Profile() {
   const [profile, setProfile] = useState(emptyProfile);
   const [image, setImage] = useState(null);
   const [resume, setResume] = useState(null);
+  const [heroes, setHeroes] = useState({});
+  const [heroInputVersion, setHeroInputVersion] = useState(0);
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -77,19 +79,22 @@ export default function Profile() {
       ].map((key) => [key, profile[key] || ""]),
     );
     let payload = fields;
-    if (image || resume) {
+    if (image || resume || Object.values(heroes).some(Boolean)) {
       payload = new FormData();
       Object.entries(fields).forEach(([key, value]) =>
         payload.append(key, value),
       );
       if (image) payload.append("image", image);
       if (resume) payload.append("resume", resume);
+      Object.entries(heroes).forEach(([key, file]) => { if (file) payload.append(key, file); });
     }
     try {
       const { data } = await API.put("/admin/profile", payload);
       setProfile({ ...emptyProfile, ...data });
       setImage(null);
       setResume(null);
+      setHeroes({});
+      setHeroInputVersion(v => v + 1);
       if (imageInput.current) imageInput.current.value = "";
       if (resumeInput.current) resumeInput.current.value = "";
       window.dispatchEvent(new Event("profile-updated"));
@@ -236,6 +241,19 @@ export default function Profile() {
                 onChange={(e) => setResume(e.target.files?.[0] || null)}
               />
             </label>
+          </div>
+          <div className="admin-form-grid" key={heroInputVersion}>
+            {["heroLight", "heroDark"].map((field) => <label className="admin-field" key={field}>
+              <span>{field === "heroLight" ? "Light" : "Dark"} theme hero · up to 5 MB</span>
+              <input className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file && (file.size > 5 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(file.type))) {
+                  setError("Choose a JPG, PNG or WebP image up to 5 MB."); e.target.value = ""; return;
+                }
+                setHeroes(current => ({ ...current, [field]: file || null }));
+              }} />
+              {profile[field] && <img className="blog-card-image" src={assetUrl(profile[field])} alt={field === "heroLight" ? "Light theme hero" : "Dark theme hero"} />}
+            </label>)}
           </div>
           {(preview || profile.image) && (
             <div className="admin-profile-preview">

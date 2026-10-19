@@ -80,14 +80,14 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background-image: url('/home-dark-mode.webp');
+    background-image: var(--hero-dark-image, url('/home-dark-mode.webp'));
     background-position: center top;
     background-size: cover;
     background-repeat: no-repeat;
     opacity: .075;
   }
   html[data-theme="light"] .public-shell::before {
-    background-image: url('/home-light-mode.webp');
+    background-image: var(--hero-light-image, url('/home-light-mode.webp'));
     opacity: .07;
   }
   .public-shell > * {
@@ -368,8 +368,8 @@
   }
 
   /* Home hero */
-  .home-hero { min-height: 100vh; position: relative; display: grid; align-items: center; isolation: isolate; background-image: url('/home-dark-mode.webp'); background-position: center top; background-size: cover; background-attachment: fixed; }
-  html[data-theme="light"] .home-hero { background-image: url('/home-light-mode.webp'); }
+  .home-hero { min-height: 100vh; position: relative; display: grid; align-items: center; isolation: isolate; background-image: var(--hero-dark-image, url('/home-dark-mode.webp')); background-position: center top; background-size: cover; background-attachment: fixed; }
+  html[data-theme="light"] .home-hero { background-image: var(--hero-light-image, url('/home-light-mode.webp')); }
   .home-hero-shade { position: absolute; inset: 0; z-index: -1; background: var(--hero-overlay); }
   .home-hero-grid { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(0,0,0,.10), transparent 40%, rgba(0,0,0,.08)); pointer-events: none; }
   .home-hero-content {
@@ -3183,3 +3183,6 @@ html[data-theme="light"] .admin-shell :is(.cms-button.is-primary, .admin-login-s
 @keyframes devops-transfer { from { transform: translateX(-110%); } to { transform: translateX(390%); } }
 @media (max-width: 480px) { .devops-terminal-body { padding: 18px; } .devops-pipeline { gap: 10px; } .devops-stage { flex-direction: column; align-items: flex-start; gap: 6px; } .devops-terminal-bar { padding: 12px; gap: 8px; font-size: 9px; } }
 @media (prefers-reduced-motion: reduce) { .devops-cursor, .devops-stage > span:first-child, .devops-load-track > span { animation: none; } .devops-load-track > span { width: 100%; opacity: .5; } }
+
+.cms-cover-editor img { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+.blog-card-image { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; margin-bottom: 16px; }

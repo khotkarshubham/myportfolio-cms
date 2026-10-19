@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import assetUrl from "../../utils/assetUrl";
 import API from "../../services/api";
 import { formatDateTime } from "../../utils/adminFormat";
 
-const empty = { title: "", content: "", tags: [], status: "draft" };
+const empty = { title: "", content: "", tags: [], status: "draft", image: "", imageAlt: "" };
 export default function Blogs() {
   const [blogs, setBlogs] = useState([]);
   const [article, setArticle] = useState(empty);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const imageInput = useRef(null);
+  useEffect(() => {
+    if (!imageFile) { setImagePreview(""); return; }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
   const [tags, setTags] = useState("");
   const [dirty, setDirty] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -70,6 +80,8 @@ export default function Blogs() {
     if (dirty && !window.confirm("Discard unsaved changes to this article?"))
       return;
     setArticle(a);
+    setImageFile(null);
+    if (imageInput.current) imageInput.current.value = "";
     setTags((a.tags || []).join(", "));
     setDirty(false);
     setPreview(false);
@@ -109,7 +121,7 @@ export default function Blogs() {
     setBusy(true);
     setError("");
     setNotice("");
-    const payload = {
+    const fields = {
       title: article.title,
       content: article.content,
       tags: tags
@@ -117,12 +129,19 @@ export default function Blogs() {
         .map((t) => t.trim())
         .filter(Boolean),
       status,
+      image: article.image || "",
+      imageAlt: article.imageAlt || "",
     };
+    const payload = new FormData();
+    Object.entries(fields).forEach(([key, value]) => payload.append(key, Array.isArray(value) ? JSON.stringify(value) : value));
+    if (imageFile) payload.append("blogImage", imageFile);
     try {
       const { data } = article._id
         ? await API.put(`/admin/blogs/${article._id}`, payload)
         : await API.post("/admin/blogs", payload);
       setArticle(data);
+      setImageFile(null);
+      if (imageInput.current) imageInput.current.value = "";
       setDirty(false);
       setTags((data.tags || []).join(", "));
       setBlogs((items) => [
@@ -152,6 +171,8 @@ export default function Blogs() {
       setBlogs((items) => items.filter((b) => b._id !== a._id));
       if (article._id === a._id) {
         setArticle(empty);
+        setImageFile(null);
+        if (imageInput.current) imageInput.current.value = "";
         setTags("");
         setDirty(false);
       }
@@ -246,6 +267,27 @@ export default function Blogs() {
                   setDirty(true);
                 }}
               />
+            </label>
+            <label className="admin-field">
+              <span>Cover image · JPG, PNG or WebP · up to 5 MB</span>
+              <input ref={imageInput} type="file" className="admin-file" accept="image/jpeg,image/png,image/webp" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                  setError("Choose a JPG, PNG or WebP image up to 5 MB."); e.target.value = ""; return;
+                }
+                setImageFile(file); setDirty(true); setError(""); setNotice("");
+              }} />
+            </label>
+            {(imagePreview || article.image) && <div className="cms-cover-editor">
+              <img src={imagePreview || assetUrl(article.image)} alt={article.imageAlt || "Cover preview"} />
+              <button type="button" className="cms-text-link is-danger" onClick={() => {
+                setImageFile(null); change("image", ""); if (imageInput.current) imageInput.current.value = "";
+              }}>Remove cover image</button>
+            </div>}
+            <label className="admin-field">
+              <span>Image description <small>· for accessibility</small></span>
+              <input className="admin-input" maxLength={300} value={article.imageAlt || ""} onChange={(e) => change("imageAlt", e.target.value)} placeholder="Describe what the image shows" />
             </label>
           </fieldset>
           <div className="cms-toolbar">

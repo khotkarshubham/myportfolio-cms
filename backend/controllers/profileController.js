@@ -142,6 +142,15 @@ export const updateProfile = async (req, res) => {
 
     const oldImage = profile.image;
     const oldResume = profile.resume;
+    const oldHeroes = {};
+    for (const field of ["heroLight", "heroDark"]) {
+      const file = req.files?.[field]?.[0];
+      if (file) {
+        oldHeroes[field] = profile[field];
+        profile[field] = getUploadPath(file);
+        uploadedFiles.push({ path: profile[field] });
+      }
+    }
 
     let image;
     let resume;
@@ -297,6 +306,7 @@ export const updateProfile = async (req, res) => {
      */
 
     await profile.save();
+    for (const oldPath of Object.values(oldHeroes)) await removeProfileFile(oldPath);
 
     /*
      * Delete replaced profile image only AFTER

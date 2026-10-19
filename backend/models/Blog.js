@@ -32,6 +32,8 @@ const blogSchema = new mongoose.Schema(
       maxlength: 50000
     },
 
+    imageAlt: { type: String, trim: true, maxlength: 300, default: "" },
+
     image: {
       type: String,
       trim: true,

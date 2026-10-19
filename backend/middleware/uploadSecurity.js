@@ -1,4 +1,5 @@
 import multer from "multer";
+import { mediaConfig, storeInS3, deleteFromS3 } from "../services/mediaStorage.js";
 import path from "path";
 import crypto from "crypto";
 import fs from "fs";
@@ -149,6 +150,9 @@ const allowedFiles = {
  * image / imageFile
  * certificate / certificateFile
  */
+allowedFiles.heroLight = { ...allowedFiles.image, directory: path.join(uploadRoot, "hero", "light") };
+allowedFiles.heroDark = { ...allowedFiles.image, directory: path.join(uploadRoot, "hero", "dark") };
+
 const getFileConfig = (fieldname) => {
   if (!fieldname) return null;
 
@@ -263,7 +267,9 @@ const validateFileSignature = async (file) => {
 
       return Boolean(
         signature &&
-        config.signatures.includes(signature)
+        config.signatures.includes(signature) &&
+        ({ jpeg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf" })[signature] === file.mimetype &&
+        ({ ".jpg": "jpeg", ".jpeg": "jpeg", ".png": "png", ".webp": "webp", ".pdf": "pdf" })[path.extname(file.originalname).toLowerCase()] === signature
       );
     } finally {
       await fileHandle.close();
@@ -331,9 +337,7 @@ const safelyDeleteFile = async (filePath) => {
  * Validate files after Multer has written them.
  */
 const validateUploadedFiles = async (files) => {
-  const uploadedFiles = Array.isArray(files)
-    ? files
-    : Object.values(files || {}).flat();
+  const uploadedFiles = flattenFiles(files);
 
   for (const file of uploadedFiles) {
     if (!validateDeclaredFileType(file)) {
@@ -368,29 +372,42 @@ const validateUploadedFiles = async (files) => {
 /**
  * Wrap Multer with binary file validation.
  */
-const secureUpload = (middleware) => {
-  return async (req, res, next) => {
-    middleware(req, res, async (error) => {
-      if (error) {
-        return next(error);
-      }
+const flattenFiles = (files) => !files ? [] : Array.isArray(files) ? files : files.fieldname ? [files] : Object.values(files).flat();
 
-      try {
-        await validateUploadedFiles(
-          req.files || req.file
-        );
-
-        return next();
-      } catch (validationError) {
-        return res.status(400).json({
-          success: false,
-          message:
-            validationError?.message ||
-            "Invalid uploaded file"
-        });
+const secureUpload = (middleware) => (req, res, next) => {
+  middleware(req, res, async (error) => {
+    const files = flattenFiles(req.files || req.file);
+    const promoted = [];
+    const cleanup = async () => {
+      await Promise.all(files.map(file => safelyDeleteFile(file.path)));
+      for (const file of promoted) {
+        try { await deleteFromS3(getUploadPath(file)); }
+        catch (err) { console.error("Media rollback failed:", getUploadPath(file), err.message); }
       }
-    });
-  };
+    };
+    if (error) { await cleanup(); return next(error); }
+    try {
+      await validateUploadedFiles(files);
+      if (mediaConfig().driver === "s3") {
+        for (const file of files) {
+          await storeInS3(file.path, getUploadPath(file), file.mimetype);
+          promoted.push(file);
+        }
+        await Promise.all(files.map(file => safelyDeleteFile(file.path)));
+      }
+      // Validation and database failures must not leave newly uploaded objects behind.
+      res.once("finish", () => {
+        if (res.statusCode >= 400) void cleanup();
+      });
+      return next();
+    } catch (err) {
+      await cleanup();
+      if (["INVALID_FILE_TYPE", "INVALID_FILE_SIGNATURE"].includes(err.code)) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      return next(err);
+    }
+  });
 };
 
 const storage = multer.diskStorage({
@@ -417,7 +434,10 @@ const storage = multer.diskStorage({
       .randomBytes(16)
       .toString("hex")}${extension}`;
 
-    cb(null, safeName);
+    const month = new Date().toISOString().slice(0, 7).replace("-", "/");
+    fs.mkdir(path.join(getFileConfig(file.fieldname).directory, month), { recursive: true }, (error) => {
+      cb(error, `${month}/${safeName}`);
+    });
   }
 });
 
@@ -455,7 +475,9 @@ export const profileUpload = secureUpload(
     {
       name: "resume",
       maxCount: 1
-    }
+    },
+    { name: "heroLight", maxCount: 1 },
+    { name: "heroDark", maxCount: 1 }
   ])
 );
 
@@ -536,6 +558,10 @@ export const getUploadPath = (file) => {
 export const removeUploadFile = async (
   filePath
 ) => {
+  if (mediaConfig().driver === "s3") {
+    try { await deleteFromS3(getUploadPath(filePath)); }
+    catch (error) { console.error("Media deletion failed:", filePath, error.message); }
+  }
   await safelyDeleteFile(filePath);
 };
 

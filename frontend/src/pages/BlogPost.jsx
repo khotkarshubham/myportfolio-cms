@@ -104,7 +104,7 @@ export default function BlogPost() {
       {blog.image && (
         <img
           src={assetUrl(blog.image)}
-          alt={blog.title || "Blog article"}
+          alt={blog.imageAlt || blog.title || "Blog article"}
           className="article-hero"
           loading="eager"
           onError={(event) => {

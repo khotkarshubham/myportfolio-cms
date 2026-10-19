@@ -2,6 +2,7 @@ import LoadingSkeleton from "../components/LoadingSkeleton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowUpRight, FiGitPullRequest } from "react-icons/fi";
+import assetUrl from "../utils/assetUrl";
 import API from "../services/api";
 import PublicPage from "../components/PublicPage";
 import SectionHeading from "../components/SectionHeading";
@@ -79,6 +80,7 @@ export default function PublicBlogs() {
               to={`/blog/${blog.slug}`}
               className="repo-card"
             >
+              {blog.image && <img className="blog-card-image" src={assetUrl(blog.image)} alt={blog.imageAlt || blog.title} loading="lazy" decoding="async" />}
               <div className="repo-top">
                 <span>Article</span>
                 <FiArrowUpRight aria-hidden="true" />

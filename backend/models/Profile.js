@@ -17,6 +17,9 @@ const profileSchema = new mongoose.Schema(
         "DevOps Engineer specializing in cloud infrastructure, CI/CD automation, and scalable systems."
     },
 
+    heroLight: { type: String, default: "", maxlength: 1000 },
+    heroDark: { type: String, default: "", maxlength: 1000 },
+
     image: {
       type: String,
       trim: true,

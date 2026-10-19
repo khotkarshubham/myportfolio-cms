@@ -1,5 +1,6 @@
-import React, { Suspense, lazy, useEffect } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import assetUrl from "./utils/assetUrl";
 import API from "./services/api";
 import PageLoader from "./components/LoadingSkeleton";
 import { LoadBoundary } from "./components/LazySection";
@@ -40,6 +41,17 @@ const AdminPage = ({ children }) => (
 );
 
 export default function App() {
+  const [heroMedia, setHeroMedia] = useState({});
+  useEffect(() => {
+    let active = true;
+    const refresh = () => API.get("/public/profile").then(({ data }) => { if (active) setHeroMedia(data || {}); }).catch(() => {});
+    const onStorage = (event) => { if (event.key === "profile_updated_at") refresh(); };
+    refresh();
+    window.addEventListener("profile-updated", refresh);
+    window.addEventListener("storage", onStorage);
+    return () => { active = false; window.removeEventListener("profile-updated", refresh); window.removeEventListener("storage", onStorage); };
+  }, []);
+
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
 
@@ -55,7 +67,10 @@ export default function App() {
   }, [location.pathname, isAdmin]);
 
   return (
-    <div className={`app-shell ${isAdmin ? "admin-shell" : "public-shell"}`}>
+    <div className={`app-shell ${isAdmin ? "admin-shell" : "public-shell"}`} style={{
+      ...(heroMedia.heroLight ? { "--hero-light-image": "url(" + JSON.stringify(assetUrl(heroMedia.heroLight)) + ")" } : {}),
+      ...(heroMedia.heroDark ? { "--hero-dark-image": "url(" + JSON.stringify(assetUrl(heroMedia.heroDark)) + ")" } : {}),
+    }}>
       {!isAdmin && <Navbar />}
 
       <main className="app-main">

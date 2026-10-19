@@ -21,6 +21,9 @@ import adminManagementRoutes from "./routes/adminManagementRoutes.js";
 import activityLogRoutes from "./routes/activityLogRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 
+import { mediaConfig, mediaRedirect } from "./services/mediaStorage.js";
+mediaConfig();
+
 const app = express();
 
 /* ================= ENV ================= */
@@ -226,6 +229,7 @@ app.use(
 
 app.use(
   "/uploads",
+  mediaRedirect,
   express.static(uploadDirectory, {
     dotfiles: "deny",
     index: false,

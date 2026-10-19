@@ -70,6 +70,9 @@ const normalizeManagedBlogImage = (value) => {
  * Normalize blog tags.
  */
 const normalizeTags = (tags) => {
+  if (typeof tags === "string") {
+    try { tags = JSON.parse(tags); } catch { return []; }
+  }
   if (!Array.isArray(tags)) {
     return [];
   }
@@ -148,6 +151,7 @@ export const createBlog = async (req, res) => {
       content,
       image,
       tags,
+      imageAlt: sanitizeText(req.body?.imageAlt || "", 300),
       status: req.body.status || "published"
     });
 
@@ -259,7 +263,8 @@ export const updateBlog = async (req, res) => {
       title,
       slug,
       content,
-      tags
+      tags,
+      imageAlt: req.body?.imageAlt !== undefined ? sanitizeText(req.body.imageAlt, 300) : existing.imageAlt || ""
     };
     if (req.body?.status !== undefined) {
       if (!["draft", "published"].includes(req.body.status)) return sendError(res, "Invalid publication status", 400);
