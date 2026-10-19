@@ -45,7 +45,18 @@ The first command only prints the copy plan. The second copies without deleting 
 
 Pause CMS writes during the final copy and cutover. Verify representative URLs for every media category, then set `MEDIA_STORAGE=s3` and restart the backend. Check upload, replacement, removal and resume download with your actual AWS role. Keep the original files and database backup until verification is complete. Rollback to local storage requires copying any media created after cutover back to the matching local paths first.
 
-The bundled homepage backgrounds remain as fallbacks. Upload `frontend/public/home-light-mode.webp` and `home-dark-mode.webp` through Profile's new hero fields to move those assets into managed S3 storage; subsequent replacements need no frontend deployment.
+### One-time hero migration from Nginx
+
+The fixed homepage backgrounds can be copied directly from the Ubuntu frontend directory. From the deployed backend directory with its `.env` configured, run:
+
+```sh
+npm run migrate:heroes -- --source-dir /var/www/nginx/portfolio-web
+npm run migrate:heroes -- --source-dir /var/www/nginx/portfolio-web --apply
+```
+
+This copies only `home-light-mode.webp` and `home-dark-mode.webp` into `portfolio/production/hero/light/home-light-mode.webp` and `portfolio/production/hero/dark/home-dark-mode.webp` (using your configured prefix). Both S3 objects are verified before the existing MongoDB profile is updated. Matching local copies are also retained in `UPLOAD_DIR`, so the references work while `MEDIA_STORAGE=local` and after switching to `s3`. Run with the same `UPLOAD_DIR` as the deployed backend. Do not point it at the frontend build directory.
+
+No browser upload, download to your laptop or frontend rebuild is needed once the media-support release is deployed. Reload the website after migration. Reruns accept identical files and reject different existing objects or hero settings; concurrent profile changes are protected. Missing source files fail before copying. Interrupted copies can be resumed by rerunning. The script does not delete original Nginx files, change bucket settings, or enable S3 mode. The original frontend images remain fallbacks.
 
 ## Limits and operations
 
