@@ -8,8 +8,6 @@ import { sanitizeText } from "../utils/sanitizeHtml.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { logAdminAction } from "../utils/auditLogger.js";
 
-const buildUploadPath = (filename, folder) =>
-  `/uploads/${folder}/${filename}`;
 
 import { validateHttpUrl, validateWhatsapp } from "../utils/profileLinks.js";
 const validateEmail = (value) => { const email = String(value ?? "").trim(); return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null; };
@@ -162,15 +160,10 @@ export const updateProfile = async (req, res) => {
       const uploaded = req.files.image[0];
 
       uploadedFiles.push({
-        path: getUploadPath(
-          `profile/${uploaded.filename}`
-        )
+        path: getUploadPath(uploaded)
       });
 
-      image = buildUploadPath(
-        uploaded.filename,
-        "profile"
-      );
+      image = getUploadPath(uploaded);
     }
 
     /*
@@ -180,15 +173,10 @@ export const updateProfile = async (req, res) => {
       const uploaded = req.files.resume[0];
 
       uploadedFiles.push({
-        path: getUploadPath(
-          `resume/${uploaded.filename}`
-        )
+        path: getUploadPath(uploaded)
       });
 
-      resume = buildUploadPath(
-        uploaded.filename,
-        "resume"
-      );
+      resume = getUploadPath(uploaded);
     }
 
     /*

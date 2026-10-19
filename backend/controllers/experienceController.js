@@ -224,7 +224,7 @@ export const createExperience = async (req, res) => {
     const exp = await Experience.create({
       ...input,
       companyLogo: req.file
-        ? `/uploads/experience/${req.file.filename}`
+        ? getUploadPath(req.file)
         : ""
     });
 
@@ -240,7 +240,7 @@ export const createExperience = async (req, res) => {
 
     if (req.file) {
       await removeCompanyLogo(
-        `/uploads/experience/${req.file.filename}`
+        getUploadPath(req.file)
       );
     }
 
@@ -292,7 +292,7 @@ export const updateExperience = async (req, res) => {
 
     if (req.file) {
       const previousLogo = existing.companyLogo;
-      existing.companyLogo = `/uploads/experience/${req.file.filename}`;
+      existing.companyLogo = getUploadPath(req.file);
       await existing.save();
       if (previousLogo) await removeCompanyLogo(previousLogo);
     } else {
@@ -311,7 +311,7 @@ export const updateExperience = async (req, res) => {
 
     if (req.file) {
       await removeCompanyLogo(
-        `/uploads/experience/${req.file.filename}`
+        getUploadPath(req.file)
       );
     }
 

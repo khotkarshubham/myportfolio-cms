@@ -1,67 +1,69 @@
-# Media storage and S3 rollout
+# Media storage
 
-The CMS supports blog cover upload/replacement/removal and accessible image descriptions. Covers appear in the writing listing and article page. Profile settings also manage the light/dark homepage hero backgrounds. Profile photos, resumes, projects, certifications and company logos use the same storage layer. Article-body image uploads are not part of this change.
+## Bucket layout
 
-MongoDB continues to store content and stable `/uploads/...` media references. S3 stores the binary media, not the application database. No bucket names, credentials or expiring URLs are stored in articles.
-
-## Layout
-
-New uploads use random immutable filenames:
+With S3_PREFIX empty, objects are stored directly at the bucket root:
 
 ```text
-portfolio/production/
-  blogs/YYYY/MM/<timestamp>-<random>.webp
-  hero/light/YYYY/MM/<timestamp>-<random>.webp
-  hero/dark/YYYY/MM/<timestamp>-<random>.webp
-  profile/YYYY/MM/<timestamp>-<random>.jpg
-  resume/YYYY/MM/<timestamp>-<random>.pdf
-  projects/YYYY/MM/<timestamp>-<random>.png
-  certifications/YYYY/MM/<timestamp>-<random>.pdf
-  experience/YYYY/MM/<timestamp>-<random>.png
+images/
+  hero/home-light-mode.webp
+  hero/home-dark-mode.webp
+  blog/<blog-slug>/<image-name>-<unique-id>.webp
+  project/<project-slug>/<image-name>-<unique-id>.png
+  profile/profilepic-<unique-id>.png
+  experience/<company-slug>/<image-name>-<unique-id>.png
+  certification/<name-slug>/<image-name>-<unique-id>.png
+document/
+  resume/resume-<unique-id>.pdf
+  certification/<name-slug>/<filename>-<unique-id>.pdf
 ```
 
-Use a different `S3_PREFIX` or bucket per environment. Legacy files retain their existing category/filename so existing references keep working. The server redirects `/uploads/...` to CloudFront when `MEDIA_PUBLIC_URL` is configured, or to a short-lived signed S3 GET URL otherwise. The bucket can remain private. These are public portfolio assets; a draft article does not make its cover URL private.
+Hero migration uses fixed names. Other uploads use unique filenames to prevent overwrite races and stale cached replacements. Extensions retain their actual validated type. Blog slugs remain stable on title edits; project uploads reuse the existing media folder when available. New folders are selected after multipart parsing, so file/field order does not affect naming.
 
-## Configuration
+MongoDB stores stable /uploads/images/... and /uploads/document/... references. The backend serves local files or redirects to signed S3 URLs (15 minutes) / CloudFront. Images are publicly viewable portfolio assets, including covers whose article is still a draft; bucket access itself stays private.
 
-Merge `backend/.env.example` into the existing backend configuration. Keep `MEDIA_STORAGE=local` until copying and verification are complete. `UPLOAD_DIR` is resolved against the backend process working directory: use an absolute path in production and migration commands to avoid copying the wrong directory. This repository has both root and backend upload locations; inspect the deployed configuration to identify the real source.
+## Backend environment
 
-Set `S3_BUCKET`, `AWS_REGION` and `S3_PREFIX`. With `MEDIA_STORAGE=s3`, missing bucket/region fails startup. SDK credentials come from the standard AWS provider chain: prefer an instance/task IAM role in production and an AWS profile locally. See [AWS credential provider documentation](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-credential-providers/).
-
-Keep S3 Block Public Access enabled, use bucket-owner-enforced object ownership, default encryption and versioning. Scope the backend role to `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` on `arn:aws:s3:::YOUR_BUCKET/portfolio/production/*`. The migration uses conditional writes and HEAD reads; it needs GetObject and PutObject. If using KMS encryption, grant the corresponding key permissions. No object ACL permissions are needed.
-
-For CloudFront, configure Origin Access Control and its scoped read bucket policy. Set `MEDIA_PUBLIC_URL=https://YOUR_DISTRIBUTION_DOMAIN` with no origin path or prefix duplication. Restrict the distribution to the intended public media prefix. Backend uploads do not require browser S3 CORS rules. Without CloudFront, signed redirects have `Cache-Control: no-store` and expire after 15 minutes; database URLs remain stable.
-
-## Migration
-
-From `backend`, using the same absolute `UPLOAD_DIR` and target prefix planned for production:
-
-```sh
-npm run migrate:media
-npm run migrate:media -- --apply
+```dotenv
+MEDIA_STORAGE=local
+UPLOAD_DIR=/var/opt/uploads
+AWS_REGION=ap-south-1
+S3_BUCKET=khotkarshubham.in
+S3_PREFIX=
+S3_LEGACY_PREFIX=portfolio/production
+MEDIA_PUBLIC_URL=
 ```
 
-The first command only prints the copy plan. The second copies without deleting source files or editing MongoDB. Re-running verifies matching SHA-256 metadata and refuses to overwrite a different existing object. Unknown files and symlinks stop the migration so they cannot be silently missed. Existing source files are trusted migration inputs; new uploads undergo MIME, extension and signature checks.
+An empty S3_PREFIX puts new media at the root. S3_LEGACY_PREFIX preserves reads/deletions for old /uploads/blogs, /uploads/projects, /uploads/hero, etc. references. Set it to the prefix actually used by the earlier deployment (empty if old objects were at root). Do not change prefixes after migration without copying the corresponding objects. Nonempty S3_PREFIX remains supported for isolated development environments.
 
-Pause CMS writes during the final copy and cutover. Verify representative URLs for every media category, then set `MEDIA_STORAGE=s3` and restart the backend. Check upload, replacement, removal and resume download with your actual AWS role. Keep the original files and database backup until verification is complete. Rollback to local storage requires copying any media created after cutover back to the matching local paths first.
+Attach backend/policies/portfolio-media-access.json to the backend IAM user/role. It includes the new root folders and the old production prefix during transition. Keep all S3 Block Public Access settings on, ACLs disabled, SSE-S3 encryption and versioning enabled. Credentials belong only in the backend environment or an IAM role. SSE-KMS requires additional key permissions. CloudFront is optional: configure OAC and a bucket policy restricted to the distribution, then set MEDIA_PUBLIC_URL to its HTTPS origin without a duplicated prefix. No S3 browser CORS configuration is needed for backend uploads and normal image display.
 
-### One-time hero migration from Nginx
+## One-time migration on Ubuntu
 
-The fixed homepage backgrounds can be copied directly from the Ubuntu frontend directory. From the deployed backend directory with its `.env` configured, run:
+Deploy the updated backend and frontend media support first, install backend dependencies, back up MongoDB, and pause CMS edits. Run these from the backend directory containing package.json and .env, using the same UPLOAD_DIR as the running backend:
 
 ```sh
 npm run migrate:heroes -- --source-dir /var/www/nginx/portfolio-web
-npm run migrate:heroes -- --source-dir /var/www/nginx/portfolio-web --apply
+npm run migrate:layout
 ```
 
-This copies only `home-light-mode.webp` and `home-dark-mode.webp` into `portfolio/production/hero/light/home-light-mode.webp` and `portfolio/production/hero/dark/home-dark-mode.webp` (using your configured prefix). Both S3 objects are verified before the existing MongoDB profile is updated. Matching local copies are also retained in `UPLOAD_DIR`, so the references work while `MEDIA_STORAGE=local` and after switching to `s3`. Run with the same `UPLOAD_DIR` as the deployed backend. Do not point it at the frontend build directory.
+These preview operations do not modify files or MongoDB. The layout preview reads MongoDB references and source media, using local uploads first and S3 under S3_LEGACY_PREFIX if local files are absent. Check that the expected content appears. Then apply:
 
-No browser upload, download to your laptop or frontend rebuild is needed once the media-support release is deployed. Reload the website after migration. Reruns accept identical files and reject different existing objects or hero settings; concurrent profile changes are protected. Missing source files fail before copying. Interrupted copies can be resumed by rerunning. The script does not delete original Nginx files, change bucket settings, or enable S3 mode. The original frontend images remain fallbacks.
+```sh
+npm run migrate:heroes -- --source-dir /var/www/nginx/portfolio-web --apply
+npm run migrate:layout -- --apply
+```
 
-## Limits and operations
+The hero command copies the two Nginx files to their exact fixed names and links the profile only after both verify. It accepts the old fixed hero references from the previous migration but refuses to replace unrelated custom hero settings.
 
-Uploads accept JPEG, PNG, WebP and (for resume/certificate fields) PDF, with a 5 MB per-file limit. File extension, MIME and binary signature must agree. Uploads are authenticated and role checked before parsing. Files are validated on disk, copied to S3, then staging files are removed. Provision writable ephemeral storage and enforce request/concurrency limits at the reverse proxy.
+The layout command reorganizes referenced blogs, projects, profile photos, resumes, certifications and company logos. Each file is copied and verified before its database reference is conditionally updated. Matching local copies remain available before S3 cutover. Reruns skip already-organized records and safely resume partial work; conflicting objects or concurrent content edits stop the command. External/default static assets and unreferenced files are not moved. Old source files and S3 objects are retained; clean them up only after checking database references and your backups.
 
-Failed HTTP saves trigger best-effort removal of new files; replaced media is deleted after successful persistence. Cleanup failures are logged and should be monitored. Process termination or network failures can still leave orphan objects; periodically reconcile bucket objects against database references after a suitable grace period. Do not apply blanket expiration to active media. Configure noncurrent-version retention separately if using bucket versioning.
+After both commands succeed, set MEDIA_STORAGE=s3 and restart the backend with the updated environment. Ensure Nginx forwards backend /uploads requests to Node in S3 mode rather than serving an old local alias. Verify heroes, a blog cover, a project image and resume download. Reload the website after migration. Keep the original frontend hero files as fallbacks.
 
-Validation and automated tests use mocked S3 calls; a real bucket/CloudFront smoke test is required before production cutover. No live data is moved by installing this code.
+The older migrate:media command only copies the existing filesystem hierarchy without reorganizing records; use migrate:layout for the new structure.
+
+## Validation and operations
+
+New uploads enforce a 5 MB per-file limit and matching extension, MIME and binary signature. Failed saves trigger best-effort cleanup; replacements delete old media after persistence. Cleanup failures are logged. Process termination can leave orphan files; reconcile after a grace period rather than expiring all active media. Configure retention for noncurrent S3 versions separately.
+
+The scripts preserve existing data but do not deploy, change IAM policies, or enable S3 mode. Automated tests mock AWS and MongoDB; perform a real AWS smoke test before cutover.

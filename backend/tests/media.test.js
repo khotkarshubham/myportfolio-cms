@@ -59,12 +59,13 @@ test("multipart uploads validate single files, roll back failed saves and route 
   const upload = async (bytes, type = "image/png", name = "cover.png", fail = false) => {
     const form = new FormData();
     form.append("blogImage", new Blob([bytes], { type }), name);
+    form.append("title", "Late title");
     if (fail) form.append("fail", "1");
     return fetch(base + "/blog", { method: "POST", body: form });
   };
   assert.equal((await upload(png)).status, 201);
   const put = commands.find(c => c.constructor.name === "PutObjectCommand").input;
-  assert.match(put.Key, /^portfolio\/test\/blogs\/\d{4}\/\d{2}\/[\w-]+\.png$/);
+  assert.match(put.Key, /^portfolio\/test\/images\/blog\/late-title\/cover-[\w-]+\.png$/);
   assert.equal(put.ContentType, "image/png");
   assert.equal(put.ACL, undefined);
   assert.equal(put.Metadata.sha256.length, 64);
@@ -79,7 +80,7 @@ test("multipart uploads validate single files, roll back failed saves and route 
   for (const field of ["image", "heroLight", "heroDark"]) profile.append(field, new Blob([png], { type: "image/png" }), "asset.png");
   profile.append("resume", new Blob(["%PDF-1.7"], { type: "application/pdf" }), "resume.pdf");
   assert.equal((await fetch(base + "/profile", { method: "POST", body: profile })).status, 200);
-  for (const folder of ["profile", "hero/light", "hero/dark", "resume"]) assert.ok(commands.some(c => c.input.Key.includes(`/test/${folder}/`)));
+  for (const folder of ["images/profile", "images/hero", "document/resume"]) assert.ok(commands.some(c => c.input.Key.includes(`/test/${folder}/`)));
   const form = new FormData();
   form.append("title", "A cover story");
   form.append("content", "<p>Article body</p>");
@@ -89,6 +90,12 @@ test("multipart uploads validate single files, roll back failed saves and route 
   assert.equal((await fetch(base + "/articles", { method: "POST", body: form })).status, 201);
   assert.deepEqual(article.tags, ["Cloud", "S3"]);
   assert.equal(article.imageAlt, "Architecture diagram");
+  assert.match(article.image, /^\/uploads\/images\/blog\/a-cover-story\//);
+  const replacement = new FormData();
+  replacement.append("blogImage", new Blob([png], { type: "image/png" }), "new-cover.png");
+  replacement.append("title", "A different title");
+  assert.equal((await fetch(base + "/articles/" + article._id, { method: "PUT", body: replacement })).status, 200);
+  assert.match(article.image, /^\/uploads\/images\/blog\/a-cover-story\/new-cover-/);
   const oldImage = article.image;
   const remove = new FormData(); remove.append("image", "");
   assert.equal((await fetch(base + "/articles/" + article._id, { method: "PUT", body: remove })).status, 200);

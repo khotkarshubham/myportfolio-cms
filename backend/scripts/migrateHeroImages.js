@@ -20,7 +20,7 @@ export async function migrateHeroes({ sourceDir, apply = false, uploadDir = proc
     if (body.length < 12 || body.toString("ascii", 0, 4) !== "RIFF" || body.toString("ascii", 8, 12) !== "WEBP") {
       throw new Error(`Not a WebP image: ${filename}`);
     }
-    const relative = `hero/${theme}/${filename}`;
+    const relative = `images/hero/${filename}`;
     return { source, body, relative, publicPath: `/uploads/${relative}`, field: theme === "light" ? "heroLight" : "heroDark", checksum: hash(body) };
   }));
   for (const asset of assets) console.log(`${apply ? "COPY" : "PLAN"} ${asset.source} -> ${mediaKey(asset.publicPath, config)}`);
@@ -32,7 +32,7 @@ export async function migrateHeroes({ sourceDir, apply = false, uploadDir = proc
   const profile = await Profile.findOne().lean();
   if (!profile) throw new Error("Configure the profile in the CMS before migrating heroes");
   for (const asset of assets) {
-    if (profile[asset.field] && profile[asset.field] !== asset.publicPath) {
+    if (profile[asset.field] && profile[asset.field] !== asset.publicPath && !/^\/uploads\/hero\/(light|dark)\/home-(light|dark)-mode\.webp$/.test(profile[asset.field])) {
       throw new Error(`${asset.field} already has a different image. Migration will not overwrite it.`);
     }
   }

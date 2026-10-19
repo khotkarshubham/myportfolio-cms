@@ -47,23 +47,9 @@ const normalizeTech = (value) => {
  * Return a safe filesystem path only for managed project uploads.
  */
 const getProjectUploadPath = (imagePath) => {
-  if (
-    typeof imagePath !== "string" ||
-    !imagePath.startsWith("/uploads/projects/")
-  ) {
-    return null;
-  }
-
-  const relativePath = imagePath.replace(
-    /^\/uploads\/projects\//,
-    ""
-  );
-
-  if (!relativePath || relativePath.includes("..")) {
-    return null;
-  }
-
-  return getUploadPath(`projects/${relativePath}`);
+  if (typeof imagePath !== "string" || imagePath.includes("..") ||
+    !["/uploads/projects/", "/uploads/images/project/"].some(prefix => imagePath.startsWith(prefix))) return null;
+  return getUploadPath(imagePath) || null;
 };
 
 /**
@@ -90,7 +76,7 @@ const normalizeManagedImage = (value) => {
 
 export const createProject = async (req, res) => {
   const uploadedFile = req.file
-    ? getProjectUploadPath(`/uploads/projects/${req.file.filename}`)
+    ? getProjectUploadPath(getUploadPath(req.file))
     : null;
 
   try {
@@ -140,7 +126,7 @@ export const createProject = async (req, res) => {
     }
 
     const image = req.file
-      ? `/uploads/projects/${req.file.filename}`
+      ? getUploadPath(req.file)
       : normalizeManagedImage(req.body?.image);
 
     if (req.body?.image && !image) {
@@ -277,10 +263,10 @@ export const updateProject = async (req, res) => {
 
     if (req.file) {
       newImagePath = getProjectUploadPath(
-        `/uploads/projects/${req.file.filename}`
+        getUploadPath(req.file)
       );
 
-      updates.image = `/uploads/projects/${req.file.filename}`;
+      updates.image = getUploadPath(req.file);
     } else if (req.body?.image !== undefined) {
       const image = normalizeManagedImage(req.body.image);
       if (req.body.image && !image) {

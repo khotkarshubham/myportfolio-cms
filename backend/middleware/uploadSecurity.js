@@ -1,4 +1,7 @@
 import multer from "multer";
+import { mediaRelativePath } from "../utils/mediaLayout.js";
+import Blog from "../models/Blog.js";
+import Project from "../models/Project.js";
 import { mediaConfig, storeInS3, deleteFromS3 } from "../services/mediaStorage.js";
 import path from "path";
 import crypto from "crypto";
@@ -388,6 +391,25 @@ const secureUpload = (middleware) => (req, res, next) => {
     if (error) { await cleanup(); return next(error); }
     try {
       await validateUploadedFiles(files);
+      for (const file of files) {
+        let slug = req.body?.title || req.body?.name || req.body?.company || req.params?.id;
+        if (req.params?.id && ["blogImage", "projectImage"].includes(file.fieldname)) {
+          const model = file.fieldname === "blogImage" ? Blog : Project;
+          const existing = await model.findById(req.params.id);
+          if (existing) {
+            const category = file.fieldname === "blogImage" ? "blog" : "project";
+            const previousFolder = existing.image?.match(new RegExp("^/uploads/images/" + category + "/([^/]+)/"))?.[1];
+            slug = previousFolder || existing.slug || existing.title || slug;
+          }
+        }
+        const relative = mediaRelativePath({ field: file.fieldname, originalname: file.originalname, mimetype: file.mimetype, slug });
+        const destination = path.join(uploadRoot, relative);
+        await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+        await fs.promises.rename(file.path, destination);
+        file.path = destination;
+        file.filename = path.basename(destination);
+        file.destination = path.dirname(destination);
+      }
       if (mediaConfig().driver === "s3") {
         for (const file of files) {
           await storeInS3(file.path, getUploadPath(file), file.mimetype);

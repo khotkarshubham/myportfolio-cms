@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManagePortfolioMedia",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::khotkarshubham.in/images/*",
+        "arn:aws:s3:::khotkarshubham.in/document/*",
+        "arn:aws:s3:::khotkarshubham.in/portfolio/production/*"
+      ]
+    },
+    {
+      "Sid": "ListPortfolioMedia",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::khotkarshubham.in",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "images",
+            "images/*",
+            "document",
+            "document/*",
+            "portfolio/production",
+            "portfolio/production/*"
+          ]
+        }
+      }
+    }
+  ]
+}

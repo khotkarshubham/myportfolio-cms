@@ -9,7 +9,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "migrate:media": "node scripts/migrateMediaToS3.js",
-    "migrate:heroes": "node scripts/migrateHeroImages.js"
+    "migrate:heroes": "node scripts/migrateHeroImages.js",
+    "migrate:layout": "node scripts/organizeMedia.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",

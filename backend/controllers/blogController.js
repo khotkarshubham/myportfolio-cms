@@ -1,7 +1,7 @@
 import Blog from "../models/Blog.js";
 import { sanitizeHtml, sanitizeText } from "../utils/sanitizeHtml.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
-import { removeUploadFile } from "../middleware/uploadSecurity.js";
+import { removeUploadFile, getUploadPath } from "../middleware/uploadSecurity.js";
 import { logAdminAction } from "../utils/auditLogger.js";
 
 /**
@@ -34,7 +34,7 @@ const getBlogUploadPath = (imagePath) => {
   const normalized = imagePath.replace(/\\/g, "/");
 
   if (
-    !normalized.startsWith("/uploads/blogs/") ||
+    !(normalized.startsWith("/uploads/blogs/") || normalized.startsWith("/uploads/images/blog/")) ||
     normalized.includes("..")
   ) {
     return null;
@@ -137,7 +137,7 @@ export const createBlog = async (req, res) => {
     let image = "";
 
     if (req.file) {
-      image = `/uploads/blogs/${req.file.filename}`;
+      image = getUploadPath(req.file);
     } else if (req.body?.image) {
       image = normalizeManagedBlogImage(req.body.image);
       if (!image) {
@@ -276,7 +276,7 @@ export const updateBlog = async (req, res) => {
      */
     let previousImage = null;
     if (req.file) {
-      updates.image = `/uploads/blogs/${req.file.filename}`;
+      updates.image = getUploadPath(req.file);
       previousImage = existing.image;
     }
 

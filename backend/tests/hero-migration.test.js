@@ -34,7 +34,7 @@ test("hero migration previews, verifies both files before linking, reruns safely
   });
   const send = t.mock.method(S3Client.prototype, "send", async command => {
     const input = command.input;
-    if (failDark && input.Key.includes("/dark/")) throw new Error("Simulated S3 failure");
+    if (failDark && input.Key.includes("home-dark-mode")) throw new Error("Simulated S3 failure");
     if (command.constructor.name === "PutObjectCommand") {
       assert.equal(input.IfNoneMatch, "*");
       if (objects.has(input.Key)) throw Object.assign(new Error("Exists"), { $metadata: { httpStatusCode: 412 } });
@@ -50,14 +50,14 @@ test("hero migration previews, verifies both files before linking, reruns safely
   assert.equal(update.mock.calls.length, 0);
   failDark = false;
   await migrateHeroes({ sourceDir: root, uploadDir, apply: true });
-  assert.equal(profile.heroLight, "/uploads/hero/light/home-light-mode.webp");
-  assert.equal(profile.heroDark, "/uploads/hero/dark/home-dark-mode.webp");
-  assert.deepEqual(await readFile(path.join(uploadDir, "hero/light/home-light-mode.webp")), body);
+  assert.equal(profile.heroLight, "/uploads/images/hero/home-light-mode.webp");
+  assert.equal(profile.heroDark, "/uploads/images/hero/home-dark-mode.webp");
+  assert.deepEqual(await readFile(path.join(uploadDir, "images/hero/home-light-mode.webp")), body);
   await migrateHeroes({ sourceDir: root, uploadDir, apply: true });
   assert.equal(objects.size, 2);
   matchedCount = 0;
   await assert.rejects(migrateHeroes({ sourceDir: root, uploadDir, apply: true }), /Profile changed/);
-  objects.get("portfolio/test/hero/dark/home-dark-mode.webp").Metadata.sha256 = "mismatch";
+  objects.get("portfolio/test/images/hero/home-dark-mode.webp").Metadata.sha256 = "mismatch";
   const callsBefore = update.mock.calls.length;
   await assert.rejects(migrateHeroes({ sourceDir: root, uploadDir, apply: true }), /verification failed/);
   assert.equal(update.mock.calls.length, callsBefore);
