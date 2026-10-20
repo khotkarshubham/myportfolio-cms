@@ -8,9 +8,9 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ success: false, message: "Authorization token missing" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"], maxAge: "1h" });
 
-    if (!decoded?.id) {
+    if (typeof decoded?.id !== "string" || !/^[a-f\d]{24}$/i.test(decoded.id)) {
       return res.status(401).json({
         success: false,
         message: "Invalid token",

@@ -61,3 +61,10 @@ export const mediaWriteLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, limit: 60, keyGenerator: req => req.user.id,
   standardHeaders: true, legacyHeaders: false, handler: rateLimitHandler
 });
+
+// Baseline resource protection, in addition to the stricter endpoint limits.
+export const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, limit: 300,
+  standardHeaders: true, legacyHeaders: false, handler: rateLimitHandler,
+  skip: req => req.path === "/health" || req.path === "/health/ready"
+});

@@ -1,3 +1,5 @@
+Current release: see [PROJECTS-SECURITY-RELEASE.md](PROJECTS-SECURITY-RELEASE.md) and [PRODUCTION-CHECKS.md](PRODUCTION-CHECKS.md). The audit counts and CSP status below describe the earlier authentication release and are historical.
+
 # Security hardening — implementation and deployment status
 
 Local authentication and contact changes are implemented. Frontend CSP preparation is complete, but the Nginx header cannot safely be installed until the active configuration and deployed resource origins are inspected. No production deployment or Nginx reload was performed.

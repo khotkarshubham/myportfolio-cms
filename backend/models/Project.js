@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
+import { PROJECT_TYPES, PROJECT_STATUSES } from "../utils/projectInput.js";
 
 const projectSchema = new mongoose.Schema(
 {
+  type: { type: String, enum: PROJECT_TYPES, default: "repository" },
+  status: { type: String, enum: PROJECT_STATUSES, default: "completed" },
+  outcome: { type: String, trim: true, maxlength: 300, default: "" },
   title:{
     type:String,
     required:true,

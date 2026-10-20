@@ -373,7 +373,7 @@ export const getBlogs = async (req, res) => {
 
     return sendSuccess(
       res,
-      blogs
+      blogs.map(blog => ({ ...blog, content: sanitizeHtml(blog.content || "") }))
     );
   } catch (error) {
     console.error("Get blogs error:", error);
@@ -420,7 +420,7 @@ export const getBlogBySlug = async (req, res) => {
 
     return sendSuccess(
       res,
-      blog
+      { ...blog, content: sanitizeHtml(blog.content || "") }
     );
   } catch (error) {
     console.error(
