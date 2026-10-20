@@ -140,16 +140,6 @@ export const updateProfile = async (req, res) => {
 
     const oldImage = profile.image;
     const oldResume = profile.resume;
-    const oldHeroes = {};
-    for (const field of ["heroLight", "heroDark"]) {
-      const file = req.files?.[field]?.[0];
-      if (file) {
-        oldHeroes[field] = profile[field];
-        profile[field] = getUploadPath(file);
-        uploadedFiles.push({ path: profile[field] });
-      }
-    }
-
     let image;
     let resume;
 
@@ -294,7 +284,7 @@ export const updateProfile = async (req, res) => {
      */
 
     await profile.save();
-    for (const oldPath of Object.values(oldHeroes)) await removeProfileFile(oldPath);
+    req.mediaCommitted = true;
 
     /*
      * Delete replaced profile image only AFTER
@@ -342,9 +332,7 @@ export const updateProfile = async (req, res) => {
      * If DB save/validation fails after files were
      * uploaded, remove the newly uploaded files.
      */
-    await cleanupUploadedFiles(
-      uploadedFiles
-    );
+    if (!req.mediaCommitted) await cleanupUploadedFiles(uploadedFiles);
 
     return sendError(
       res,

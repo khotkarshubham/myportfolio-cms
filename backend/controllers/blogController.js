@@ -139,10 +139,7 @@ export const createBlog = async (req, res) => {
     if (req.file) {
       image = getUploadPath(req.file);
     } else if (req.body?.image) {
-      image = normalizeManagedBlogImage(req.body.image);
-      if (!image) {
-        return sendError(res, "Image must be a managed blog upload", 400);
-      }
+      return sendError(res, "Upload a new image for this article", 400);
     }
 
     const blog = await Blog.create({
@@ -155,6 +152,7 @@ export const createBlog = async (req, res) => {
       status: req.body.status || "published"
     });
 
+    req.mediaCommitted = true;
     await logAdminAction(req, {
       action: "CREATE_BLOG",
       entity: "BLOG",
@@ -300,7 +298,7 @@ export const updateBlog = async (req, res) => {
       req.body.image !== ""
     ) {
       updates.image = normalizeManagedBlogImage(req.body.image);
-      if (!updates.image) {
+      if (!updates.image || updates.image !== existing.image) {
         return sendError(res, "Image must be a managed blog upload", 400);
       }
       previousImage = existing.image;
@@ -323,6 +321,7 @@ export const updateBlog = async (req, res) => {
       );
     }
 
+    req.mediaCommitted = true;
     if (previousImage && previousImage !== updates.image) {
       await removeBlogImage(previousImage);
     }

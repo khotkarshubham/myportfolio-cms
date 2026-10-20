@@ -1,8 +1,10 @@
+import { adminSession } from "./adminSession.js";
 import axios from "axios";
 
 const API = axios.create({
   withCredentials: true,
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+  timeout: 60000,
 });
 
 const normalizeResponse = (response) => {
@@ -18,9 +20,6 @@ const normalizeResponse = (response) => {
   return response;
 };
 
-// Remove legacy credentials during migration; JWTs are now HttpOnly cookies.
-localStorage.removeItem("admin_token");
-sessionStorage.removeItem("admin_token");
 API.interceptors.request.use((config) => {
   if (!["get", "head", "options"].includes((config.method || "get").toLowerCase())) {
     config.headers["X-CSRF-Protection"] = "1";
@@ -30,11 +29,10 @@ API.interceptors.request.use((config) => {
 
 API.interceptors.response.use(normalizeResponse, (error) => {
   if (error?.response?.status === 401) {
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_role");
+    adminSession.clear();
     delete API.defaults.headers.common["Authorization"];
 
-    if (!window.location.pathname.startsWith("/admin/login")) {
+    if (window.location.pathname.startsWith("/admin") && !window.location.pathname.startsWith("/admin/login")) {
       window.location.assign("/admin/login");
     }
   }

@@ -9,7 +9,7 @@ import { mediaConfig, mediaKey } from "../services/mediaStorage.js";
 import { organizeRecord } from "../scripts/organizeMedia.js";
 
 test("media folders follow content type and slug, with root and legacy prefixes independent", () => {
-  const config = mediaConfig({ S3_PREFIX: "", S3_LEGACY_PREFIX: "portfolio/production" });
+  const config = mediaConfig({ S3_BUCKET: "test", AWS_REGION: "ap-south-1", S3_PREFIX: "", S3_LEGACY_PREFIX: "portfolio/production" });
   assert.equal(mediaKey("/uploads/images/hero/home-light-mode.webp", config), "images/hero/home-light-mode.webp");
   assert.equal(mediaKey("/uploads/resume/old.pdf", config), "portfolio/production/resume/old.pdf");
   assert.equal(mediaSlug("It's a Cloud Story!"), "its-a-cloud-story");
@@ -24,7 +24,7 @@ test("media folders follow content type and slug, with root and legacy prefixes 
 test("layout migration verifies before updating, preserves old references on failure and resumes safely", async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portfolio-layout-"));
   const env = { ...process.env };
-  const settings = { MEDIA_STORAGE: "local", S3_BUCKET: "test", AWS_REGION: "ap-south-1", S3_PREFIX: "", S3_LEGACY_PREFIX: "portfolio/production", MEDIA_PUBLIC_URL: "" };
+  const settings = { MEDIA_STORAGE: "s3", S3_BUCKET: "test", AWS_REGION: "ap-south-1", S3_PREFIX: "", S3_LEGACY_PREFIX: "portfolio/production", MEDIA_PUBLIC_URL: "" };
   Object.assign(process.env, settings);
   t.after(async () => {
     for (const key of Object.keys(settings)) { if (env[key] === undefined) delete process.env[key]; else process.env[key] = env[key]; }

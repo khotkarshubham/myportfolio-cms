@@ -24,7 +24,7 @@ const profileSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 1000,
-      default: "/Profile.png"
+      default: ""
     },
 
     /*

@@ -11,7 +11,7 @@ test("hero migration previews, verifies both files before linking, reruns safely
   const root = await mkdtemp(path.join(os.tmpdir(), "portfolio-heroes-"));
   const uploadDir = path.join(root, "uploads");
   const saved = { ...process.env };
-  const settings = { S3_BUCKET: "test-bucket", AWS_REGION: "ap-south-1", S3_PREFIX: "portfolio/test", MEDIA_STORAGE: "local", MEDIA_PUBLIC_URL: "" };
+  const settings = { S3_BUCKET: "test-bucket", AWS_REGION: "ap-south-1", S3_PREFIX: "portfolio/test", MEDIA_STORAGE: "s3", MEDIA_PUBLIC_URL: "" };
   Object.assign(process.env, settings);
   t.after(async () => {
     for (const key of Object.keys(settings)) {
@@ -52,7 +52,7 @@ test("hero migration previews, verifies both files before linking, reruns safely
   await migrateHeroes({ sourceDir: root, uploadDir, apply: true });
   assert.equal(profile.heroLight, "/uploads/images/hero/home-light-mode.webp");
   assert.equal(profile.heroDark, "/uploads/images/hero/home-dark-mode.webp");
-  assert.deepEqual(await readFile(path.join(uploadDir, "images/hero/home-light-mode.webp")), body);
+  await assert.rejects(readFile(path.join(uploadDir, "images/hero/home-light-mode.webp")), { code: "ENOENT" });
   await migrateHeroes({ sourceDir: root, uploadDir, apply: true });
   assert.equal(objects.size, 2);
   matchedCount = 0;

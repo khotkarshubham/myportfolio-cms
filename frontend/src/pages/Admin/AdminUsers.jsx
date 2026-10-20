@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useEffect, useState } from "react";
 import { FaUsers, FaUserShield, FaUserCheck } from "react-icons/fa";
 import API from "../../services/api";
@@ -40,8 +41,8 @@ export default function AdminUsers() {
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
-  const allowed = localStorage.getItem("admin_role") === "superadmin";
-  const ownEmail = localStorage.getItem("admin_email");
+  const allowed = adminSession.getItem("admin_role") === "superadmin";
+  const ownEmail = adminSession.getItem("admin_email");
   const load = () => setRefresh((value) => value + 1);
   useEffect(() => {
     if (!allowed) return;

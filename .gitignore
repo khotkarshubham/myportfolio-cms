@@ -6,3 +6,5 @@ dist/
 backend/uploads/
 coverage/
 npm-debug.log*
+
+uploads/

@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useEffect, useState } from "react";
 import { FaInbox, FaSyncAlt, FaEnvelope, FaArchive } from "react-icons/fa";
 import API from "../../services/api";
@@ -12,7 +13,7 @@ export default function Messages() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const canEdit = ["superadmin", "editor"].includes(
-    localStorage.getItem("admin_role"),
+    adminSession.getItem("admin_role"),
   );
   const load = async () => {
     setLoading(true);

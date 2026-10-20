@@ -7,7 +7,7 @@ import { mediaConfig, mediaKey, storeInS3 } from "../services/mediaStorage.js";
 
 const apply = process.argv.includes("--apply");
 const config = mediaConfig();
-const root = path.resolve(process.env.UPLOAD_DIR || "uploads");
+const root = path.resolve(process.env.LEGACY_UPLOAD_DIR || process.env.UPLOAD_DIR || "uploads");
 const types = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".pdf": "application/pdf" };
 const client = new S3Client({ region: config.region });
 if (apply && (!config.bucket || !config.region)) throw new Error("Set S3_BUCKET and AWS_REGION before applying migration");
@@ -24,7 +24,7 @@ async function walk(directory) {
       if (!Key || !contentType) throw new Error(`Unsupported file; resolve before cutover: ${relative}`);
       console.log(`${apply ? "COPY" : "PLAN"} ${relative} -> ${Key}`);
       if (!apply) continue;
-      try { await storeInS3(filename, publicPath, contentType, { ifAbsent: true }); }
+      try { await storeInS3(await readFile(filename), publicPath, contentType, { ifAbsent: true }); }
       catch (error) {
         if (error.$metadata?.httpStatusCode !== 412) throw error;
         const existing = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key }));

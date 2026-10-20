@@ -1,3 +1,4 @@
+import { adminSession } from "../services/adminSession.js";
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import API from "../services/api";
@@ -12,8 +13,8 @@ export default function ProtectedRoute({ children }) {
         setStatus("unauthorized");
         return;
       }
-      localStorage.setItem("admin_role", data.role);
-      localStorage.setItem("admin_email", data.email);
+      adminSession.setItem("admin_role", data.role);
+      adminSession.setItem("admin_email", data.email);
       setStatus("authenticated");
     }).catch(() => { if (active) setStatus("error"); });
     return () => { active = false; };

@@ -228,6 +228,7 @@ export const createExperience = async (req, res) => {
         : ""
     });
 
+    req.mediaCommitted = true;
     await logAdminAction(req, {
       action: "CREATE_EXPERIENCE",
       entity: "EXPERIENCE",
@@ -238,7 +239,7 @@ export const createExperience = async (req, res) => {
   } catch (error) {
     console.error("Create experience error:", error);
 
-    if (req.file) {
+    if (req.file && !req.mediaCommitted) {
       await removeCompanyLogo(
         getUploadPath(req.file)
       );
@@ -294,9 +295,11 @@ export const updateExperience = async (req, res) => {
       const previousLogo = existing.companyLogo;
       existing.companyLogo = getUploadPath(req.file);
       await existing.save();
+      req.mediaCommitted = true;
       if (previousLogo) await removeCompanyLogo(previousLogo);
     } else {
       await existing.save();
+      req.mediaCommitted = true;
     }
 
     await logAdminAction(req, {
@@ -309,7 +312,7 @@ export const updateExperience = async (req, res) => {
   } catch (error) {
     console.error("Update experience error:", error);
 
-    if (req.file) {
+    if (req.file && !req.mediaCommitted) {
       await removeCompanyLogo(
         getUploadPath(req.file)
       );

@@ -6,7 +6,8 @@ const ThemeContext = createContext(null);
 const getPreferredDark = () => {
   if (typeof window === "undefined") return true;
 
-  const saved = window.localStorage.getItem(STORAGE_KEY);
+  let saved;
+  try { saved = window.localStorage.getItem(STORAGE_KEY); } catch {}
   if (saved === "dark") return true;
   if (saved === "light") return false;
 
@@ -32,7 +33,7 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     applyTheme(dark);
-    window.localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
+    try { window.localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light"); } catch {}
   }, [dark]);
 
   const value = useMemo(

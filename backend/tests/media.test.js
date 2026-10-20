@@ -11,10 +11,10 @@ import ActivityLog from "../models/ActivityLog.js";
 
 test("media config fails closed and keys reject traversal or external paths", () => {
   assert.throws(() => mediaConfig({ MEDIA_STORAGE: "s3" }), /required/);
-  assert.throws(() => mediaConfig({ MEDIA_STORAGE: "typo" }), /local or s3/);
+  assert.throws(() => mediaConfig({ MEDIA_STORAGE: "typo" }), /Local media storage/);
   assert.throws(() => mediaConfig({ S3_PREFIX: "../escape" }), /Invalid/);
-  assert.throws(() => mediaConfig({ MEDIA_PUBLIC_URL: "http://cdn.example" }), /HTTPS/);
-  const config = mediaConfig({ S3_PREFIX: "portfolio/test" });
+  assert.throws(() => mediaConfig({ S3_BUCKET: "test", AWS_REGION: "ap-south-1", MEDIA_PUBLIC_URL: "http://cdn.example" }), /HTTPS/);
+  const config = mediaConfig({ S3_BUCKET: "test", AWS_REGION: "ap-south-1", S3_PREFIX: "portfolio/test" });
   assert.equal(mediaKey("/uploads/blogs/2026/10/example.webp", config), "portfolio/test/blogs/2026/10/example.webp");
   for (const value of ["/uploads/../secret", "/uploads/blogs/%2e%2e/a", "/uploads/blogs/a?b", "https://evil/a", "/uploads/", "/uploads/blogs/\\a"]) assert.equal(mediaKey(value, config), null);
 });
@@ -50,7 +50,7 @@ test("multipart uploads validate single files, roll back failed saves and route 
   app.post("/blog", blogUpload, (req, res) => res.status(req.body.fail ? 400 : 201).json({ filename: req.file?.filename }));
   app.post("/profile", profileUpload, (req, res) => res.json({ fields: Object.keys(req.files) }));
   app.use("/uploads", mediaRedirect);
-  app.use((err, req, res, next) => res.status(err.code === "LIMIT_FILE_SIZE" ? 413 : 500).json({ error: err.message }));
+  app.use((err, req, res, next) => res.status(err.code === "LIMIT_FILE_SIZE" ? 413 : err.statusCode || (err.name === "MulterError" ? 400 : 500)).json({ error: err.message }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -77,10 +77,10 @@ test("multipart uploads validate single files, roll back failed saves and route 
   for (let i = 0; i < 30 && !commands.slice(before).some(c => c.constructor.name === "DeleteObjectCommand"); i++) await new Promise(resolve => setTimeout(resolve, 10));
   assert.ok(commands.slice(before).some(c => c.constructor.name === "DeleteObjectCommand"));
   const profile = new FormData();
-  for (const field of ["image", "heroLight", "heroDark"]) profile.append(field, new Blob([png], { type: "image/png" }), "asset.png");
+  for (const field of ["image"]) profile.append(field, new Blob([png], { type: "image/png" }), "asset.png");
   profile.append("resume", new Blob(["%PDF-1.7"], { type: "application/pdf" }), "resume.pdf");
   assert.equal((await fetch(base + "/profile", { method: "POST", body: profile })).status, 200);
-  for (const folder of ["images/profile", "images/hero", "document/resume"]) assert.ok(commands.some(c => c.input.Key.includes(`/test/${folder}/`)));
+  for (const folder of ["images/profile", "document/resume"]) assert.ok(commands.some(c => c.input.Key.includes(`/test/${folder}/`)));
   const form = new FormData();
   form.append("title", "A cover story");
   form.append("content", "<p>Article body</p>");
@@ -111,9 +111,5 @@ test("multipart uploads validate single files, roll back failed saves and route 
     return (await Promise.all(entries.map(e => e.isDirectory() ? files(path.join(dir, e.name)) : [e.name]))).flat();
   }
   assert.deepEqual(await files(root), []);
-  process.env.MEDIA_STORAGE = "local";
-  const localUpload = await upload(png);
-  assert.equal(localUpload.status, 201);
-  const filename = (await localUpload.json()).filename;
-  assert.deepEqual(await files(root), [path.basename(filename)]);
+
 });

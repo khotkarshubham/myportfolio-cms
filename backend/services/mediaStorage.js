@@ -1,11 +1,11 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+
 
 export const mediaConfig = (env = process.env) => {
-  const driver = env.MEDIA_STORAGE || "local";
-  if (!["local", "s3"].includes(driver)) throw new Error("MEDIA_STORAGE must be local or s3");
+  const driver = env.MEDIA_STORAGE || "s3";
+  if (driver !== "s3") throw new Error("Local media storage is retired. Set MEDIA_STORAGE=s3 after completing migration.");
   const prefix = env.S3_PREFIX ?? "";
   const legacyPrefix = env.S3_LEGACY_PREFIX ?? env.S3_PREFIX ?? "portfolio/production";
   if ([prefix, legacyPrefix].some(value => value && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(value))) throw new Error("Invalid S3_PREFIX");
@@ -19,22 +19,30 @@ export const mediaConfig = (env = process.env) => {
 };
 
 // Database URLs are provider-independent; only this layer knows the bucket layout.
-export const mediaKey = (value, config = mediaConfig()) => {
+export const normalizeMediaPath = value => {
   if (typeof value !== "string" || !value.startsWith("/uploads/")) return null;
   const relative = value.slice(9);
   if (!relative || !relative.split("/").every(part => /^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*$/.test(part) && !part.includes(".."))) return null;
+  if (!/^(images\/(hero|blog|project|profile|experience|certification)|document\/(resume|certification)|blogs|projects|profile|resume|hero|experience|certifications)\//.test(relative)) return null;
+  return value;
+};
+
+export const mediaKey = (value, config = mediaConfig()) => {
+  const normalized = normalizeMediaPath(value);
+  if (!normalized) return null;
+  const relative = normalized.slice(9);
   const prefix = /^(images|document)\//.test(relative) ? config.prefix : config.legacyPrefix;
   return [prefix, relative].filter(Boolean).join("/");
 };
 
 let client;
-const s3 = () => client ||= new S3Client({ region: mediaConfig().region, maxAttempts: 3 });
+const s3 = () => client ||= new S3Client({ region: mediaConfig().region, maxAttempts: 3, requestHandler: { connectionTimeout: 5000, requestTimeout: 15000 } });
 
-export const storeInS3 = async (filePath, publicPath, contentType, options = {}) => {
+export const storeInS3 = async (body, publicPath, contentType, options = {}) => {
   const config = mediaConfig();
   const Key = mediaKey(publicPath, config);
   if (!Key) throw new Error("Invalid managed media path");
-  const body = await readFile(filePath);
+  if (!Buffer.isBuffer(body)) throw new Error("S3 uploads require a Buffer");
   return s3().send(new PutObjectCommand({
     Bucket: config.bucket, Key, Body: body, ContentType: contentType,
     CacheControl: "public, max-age=31536000, immutable",
@@ -50,9 +58,29 @@ export const deleteFromS3 = async (publicPath) => {
   await s3().send(new DeleteObjectCommand({ Bucket: config.bucket, Key }));
 };
 
+let healthResult;
+let healthExpires = 0;
+let healthPending;
+export const checkMediaStorage = async () => {
+  if (Date.now() < healthExpires) return healthResult;
+  if (healthPending) return healthPending;
+  healthPending = (async () => {
+    try {
+      const config = mediaConfig();
+      await s3().send(new HeadObjectCommand({
+        Bucket: config.bucket,
+        Key: mediaKey("/uploads/images/hero/home-light-mode.webp", config)
+      }), { abortSignal: AbortSignal.timeout(4000) });
+      healthResult = true;
+    } catch { healthResult = false; }
+    healthExpires = Date.now() + 30000;
+    return healthResult;
+  })();
+  try { return await healthPending; } finally { healthPending = undefined; }
+};
+
 export const mediaRedirect = async (req, res, next) => {
   const config = mediaConfig();
-  if (config.driver !== "s3") return next();
   if (!["GET", "HEAD"].includes(req.method)) return res.sendStatus(405);
   let publicPath;
   try { publicPath = `/uploads${decodeURIComponent(req.path)}`; } catch { return res.sendStatus(400); }
@@ -61,8 +89,8 @@ export const mediaRedirect = async (req, res, next) => {
   try {
     const location = config.publicUrl
       ? `${config.publicUrl}/${Key.split("/").map(encodeURIComponent).join("/")}`
-      : await getSignedUrl(s3(), new GetObjectCommand({ Bucket: config.bucket, Key }), { expiresIn: 900 });
-    res.setHeader("Cache-Control", config.publicUrl ? "public, max-age=300" : "no-store");
+      : await getSignedUrl(s3(), new (req.method === "HEAD" ? HeadObjectCommand : GetObjectCommand)({ Bucket: config.bucket, Key }), { expiresIn: 900 });
+    res.setHeader("Cache-Control", "no-store");
     return res.redirect(302, location);
   } catch (error) { return next(error); }
 };

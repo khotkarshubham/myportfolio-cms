@@ -6,7 +6,6 @@ import cors from "cors";
 import { Server } from "socket.io";
 import http from "http";
 import helmet from "helmet";
-import path from "path";
 
 import connectDB from "./config/db.js";
 
@@ -204,38 +203,8 @@ app.use(
   })
 );
 
-/* ================= STATIC UPLOADS ================= */
-
-const uploadDirectory = path.resolve(
-  process.env.UPLOAD_DIR || "uploads"
-);
-
-app.use(
-  "/uploads",
-  (req, res, next) => {
-    res.setHeader(
-      "Cross-Origin-Resource-Policy",
-      "cross-origin"
-    );
-
-    res.setHeader(
-      "X-Content-Type-Options",
-      "nosniff"
-    );
-
-    next();
-  }
-);
-
-app.use(
-  "/uploads",
-  mediaRedirect,
-  express.static(uploadDirectory, {
-    dotfiles: "deny",
-    index: false,
-    maxAge: NODE_ENV === "production" ? "7d" : 0
-  })
-);
+/* Stable media references redirect to S3; the server never serves local uploads. */
+app.use("/uploads", mediaRedirect);
 
 /* ================= ROUTES ================= */
 
@@ -289,6 +258,9 @@ app.use((err, req, res, next) => {
     err.status ||
     500;
 
+  if (err.name === "MulterError") statusCode = 400;
+  if (err.name === "CastError") statusCode = 400;
+  if (err.name === "ValidationError") statusCode = 400;
   if (err.code === "LIMIT_FILE_SIZE") {
     statusCode = 413;
   }
@@ -308,7 +280,8 @@ app.use((err, req, res, next) => {
   ]);
 
   return res.status(statusCode).json({
-    error: safeClientErrors.has(statusCode)
+    success: false,
+    message: safeClientErrors.has(statusCode)
       ? err.message
       : "Internal Server Error"
   });

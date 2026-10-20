@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../../services/api";
@@ -28,8 +29,8 @@ export default function Login() {
         return;
       }
 
-      localStorage.setItem("admin_role", admin.role);
-      localStorage.setItem("admin_email", admin.email);
+      adminSession.setItem("admin_role", admin.role);
+      adminSession.setItem("admin_email", admin.email);
       navigate("/admin", { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Invalid email or password.");

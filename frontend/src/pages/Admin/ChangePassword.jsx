@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useEffect, useState } from "react";
 import { FaShieldAlt, FaKey, FaLaptop } from "react-icons/fa";
 import API from "../../services/api";
@@ -221,7 +222,7 @@ export default function ChangePassword() {
         <aside className="cms-panel cms-security-guide">
           <span className="cms-badge">Your account</span>
           <h2>{account?.name || "Workspace account"}</h2>
-          <p>{account?.email || localStorage.getItem("admin_email")}</p>
+          <p>{account?.email || adminSession.getItem("admin_email")}</p>
           {accountError ? (
             <div>
               <p role="alert">{accountError}</p>

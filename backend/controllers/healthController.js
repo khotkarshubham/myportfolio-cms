@@ -1,18 +1,11 @@
 import mongoose from "mongoose";
-import fs from "fs";
-import path from "path";
+import { checkMediaStorage } from "../services/mediaStorage.js";
 import os from "os";
 
 const SERVICE_NAME = "portfolio-backend";
 const NODE_ENV = process.env.NODE_ENV || "development";
 
-// Respect the configured upload directory in production.
-// Fall back to the local uploads directory for development.
-const UPLOAD_DIR = path.resolve(
-  process.env.UPLOAD_DIR || "uploads"
-);
-
-const REQUIRED_ENV_VARS = ["MONGO_URI", "JWT_SECRET"];
+const REQUIRED_ENV_VARS = ["MONGO_URI", "JWT_SECRET", "S3_BUCKET", "AWS_REGION"];
 
 const TRACKED_ENV_VARS = [
   "MONGO_URI",
@@ -43,14 +36,6 @@ const getMongoConnectionStatus = () => {
     connected: readyState === 1,
     state: MONGO_STATES[readyState] || "unknown"
   };
-};
-
-const checkUploadDirectory = () => {
-  try {
-    return fs.existsSync(UPLOAD_DIR);
-  } catch {
-    return false;
-  }
 };
 
 const checkRequiredEnvVars = () => {
@@ -104,12 +89,12 @@ export const getReadiness = async (req, res) => {
   try {
     const mongo = getMongoConnectionStatus();
     const envCheck = checkRequiredEnvVars();
-    const uploadExists = checkUploadDirectory();
+    const mediaReady = await checkMediaStorage();
 
     const checks = {
       mongodb: mongo.connected,
       environment_variables: envCheck.allPresent,
-      upload_directory: uploadExists
+      s3_media: mediaReady
     };
 
     const ready = Object.values(checks).every(Boolean);
@@ -130,7 +115,7 @@ export const getReadiness = async (req, res) => {
       checks: {
         mongodb: false,
         environment_variables: false,
-        upload_directory: false
+        s3_media: false
       }
     });
   }
@@ -139,10 +124,10 @@ export const getReadiness = async (req, res) => {
 export const getHealthDetails = async (req, res) => {
   try {
     const mongo = getMongoConnectionStatus();
-    const uploadExists = checkUploadDirectory();
+    const mediaReady = await checkMediaStorage();
 
     res.status(200).json({
-      status: "healthy",
+      status: mongo.connected && mediaReady ? "healthy" : "degraded",
       environment: NODE_ENV,
       nodeVersion: process.version,
       platform: os.platform(),
@@ -159,10 +144,7 @@ export const getHealthDetails = async (req, res) => {
         connected: mongo.connected,
         state: mongo.state
       },
-      uploadDirectory: {
-        exists: uploadExists,
-        path: UPLOAD_DIR
-      },
+      mediaStorage: { provider: "s3", readable: mediaReady },
       environmentVariables: getEnvAvailability()
     });
   } catch {

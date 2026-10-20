@@ -31,6 +31,7 @@ const validateUrl = (value) => {
  * Normalize technology values.
  */
 const normalizeTech = (value) => {
+  if (typeof value === "string") { try { value = JSON.parse(value); } catch { return []; } }
   if (!Array.isArray(value)) {
     return [];
   }
@@ -127,7 +128,7 @@ export const createProject = async (req, res) => {
 
     const image = req.file
       ? getUploadPath(req.file)
-      : normalizeManagedImage(req.body?.image);
+      : "";
 
     if (req.body?.image && !image) {
       return sendError(res, "Image must be a managed project upload", 400);
@@ -144,6 +145,7 @@ export const createProject = async (req, res) => {
       tech
     });
 
+    req.mediaCommitted = true;
     await logAdminAction(req, {
       action: "CREATE_PROJECT",
       entity: "PROJECT",
@@ -154,7 +156,7 @@ export const createProject = async (req, res) => {
   } catch (error) {
     console.error("Create project error:", error);
 
-    if (uploadedFile) {
+    if (uploadedFile && !req.mediaCommitted) {
       await safelyRemoveUpload(uploadedFile);
     }
 
@@ -269,7 +271,7 @@ export const updateProject = async (req, res) => {
       updates.image = getUploadPath(req.file);
     } else if (req.body?.image !== undefined) {
       const image = normalizeManagedImage(req.body.image);
-      if (req.body.image && !image) {
+      if (req.body.image && (!image || image !== existing.image)) {
         return sendError(res, "Image must be a managed project upload", 400);
       }
       updates.image = image;
@@ -292,11 +294,12 @@ export const updateProject = async (req, res) => {
       return sendError(res, "Project not found", 404);
     }
 
+    req.mediaCommitted = true;
     // Delete the old image only after the database update succeeds.
     if (
-      req.file &&
+      updates.image !== undefined &&
       oldImagePath &&
-      oldImagePath !== newImagePath
+      oldImagePath !== updates.image
     ) {
       await safelyRemoveUpload(oldImagePath);
     }
@@ -312,7 +315,7 @@ export const updateProject = async (req, res) => {
     console.error("Update project error:", error);
 
     // If the database update failed, remove the newly uploaded file.
-    if (newImagePath) {
+    if (newImagePath && !req.mediaCommitted) {
       await safelyRemoveUpload(newImagePath);
     }
 

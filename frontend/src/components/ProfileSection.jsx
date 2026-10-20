@@ -1,3 +1,5 @@
+import assetUrl from "../utils/assetUrl";
+import { subscribeProfileUpdates } from "../utils/profileUpdates";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import API from "../services/api";
@@ -7,23 +9,23 @@ export default function ProfileSection({ open }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    API.get("/public/profile")
+    let active = true;
+    const refresh = () => API.get("/public/profile")
       .then((res) => {
-        setProfile(res.data?.data || res.data);
+        if (active) setProfile(res.data?.data || res.data);
       })
       .catch(() => {
-        setProfile(null);
+        if (active) setProfile(null);
       })
       .finally(() => {
-        setLoaded(true);
+        if (active) setLoaded(true);
       });
+    refresh();
+    const unsubscribe = subscribeProfileUpdates(refresh);
+    return () => { active = false; unsubscribe(); };
   }, []);
 
-  const BASE = import.meta.env.VITE_API_URL
-    ? import.meta.env.VITE_API_URL.replace("/api", "")
-    : "http://localhost:4000";
-
-  const imageUrl = profile?.image ? `${BASE}${profile.image}` : null;
+  const imageUrl = assetUrl(profile?.image);
 
   const decodeHtmlEntities = (value) => {
     if (!value) return value;

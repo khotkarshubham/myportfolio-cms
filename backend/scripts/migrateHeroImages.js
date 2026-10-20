@@ -2,7 +2,7 @@ import "dotenv/config";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
@@ -11,7 +11,7 @@ import { mediaConfig, mediaKey, storeInS3 } from "../services/mediaStorage.js";
 
 const hash = body => createHash("sha256").update(body).digest("hex");
 
-export async function migrateHeroes({ sourceDir, apply = false, uploadDir = process.env.UPLOAD_DIR || "uploads" }) {
+export async function migrateHeroes({ sourceDir, apply = false}) {
   const config = mediaConfig();
   const assets = await Promise.all(["light", "dark"].map(async theme => {
     const filename = `home-${theme}-mode.webp`;
@@ -38,15 +38,7 @@ export async function migrateHeroes({ sourceDir, apply = false, uploadDir = proc
   }
   const client = new S3Client({ region: config.region, maxAttempts: 3 });
   for (const asset of assets) {
-    // Retain matching local copies so the profile works before and after S3 cutover.
-    const localPath = path.resolve(uploadDir, asset.relative);
-    await mkdir(path.dirname(localPath), { recursive: true });
-    try { await writeFile(localPath, asset.body, { flag: "wx" }); }
-    catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      if (hash(await readFile(localPath)) !== asset.checksum) throw new Error(`Local destination differs: ${asset.relative}`);
-    }
-    try { await storeInS3(localPath, asset.publicPath, "image/webp", { ifAbsent: true }); }
+    try { await storeInS3(asset.body, asset.publicPath, "image/webp", { ifAbsent: true }); }
     catch (error) { if (error.$metadata?.httpStatusCode !== 412) throw error; }
     const existing = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: mediaKey(asset.publicPath, config) }));
     if (existing.Metadata?.sha256 !== asset.checksum || existing.ContentLength !== asset.body.length) {

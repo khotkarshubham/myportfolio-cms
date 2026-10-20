@@ -2,7 +2,7 @@ import "dotenv/config";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import { S3Client, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
@@ -19,13 +19,17 @@ const digest = body => createHash("sha256").update(body).digest("hex");
 
 export async function organizeRecord({ model, record, field, uploadField, apply, root, client }) {
   const oldPath = record[field];
-  if (!oldPath || !oldPath.startsWith("/uploads/")) return;
+  if (!oldPath || typeof oldPath !== "string" || /^https?:\/\//i.test(oldPath)) return;
+  const normalized = oldPath.replace(/\\/g, "/");
+  const marker = normalized.indexOf("/uploads/");
+  if (marker < 0) return;
+  const sourcePath = normalized.slice(marker);
   if (/^\/uploads\/(images|document)\//.test(oldPath)) return;
   const config = mediaConfig();
-  const oldKey = mediaKey(oldPath, config);
+  const oldKey = mediaKey(sourcePath, config);
   if (!oldKey) throw new Error(`Invalid source path for ${model.modelName}/${record._id}`);
   let body;
-  try { body = await readFile(path.join(root, oldPath.slice(9))); }
+  try { body = await readFile(path.join(root, sourcePath.slice(9))); }
   catch (error) {
     if (error.code !== "ENOENT") throw error;
     const response = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: oldKey }));
@@ -40,14 +44,7 @@ export async function organizeRecord({ model, record, field, uploadField, apply,
   const publicPath = `/uploads/${relative}`;
   console.log(`${apply ? "COPY" : "PLAN"} ${oldKey} -> ${mediaKey(publicPath, config)}`);
   if (!apply) return;
-  const localPath = path.join(root, relative);
-  await mkdir(path.dirname(localPath), { recursive: true });
-  try { await writeFile(localPath, body, { flag: "wx" }); }
-  catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    if (digest(await readFile(localPath)) !== checksum) throw new Error(`Local destination differs: ${relative}`);
-  }
-  try { await storeInS3(localPath, publicPath, mimetype, { ifAbsent: true }); }
+  try { await storeInS3(body, publicPath, mimetype, { ifAbsent: true }); }
   catch (error) { if (error.$metadata?.httpStatusCode !== 412) throw error; }
   const object = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: mediaKey(publicPath, config) }));
   if (object.Metadata?.sha256 !== checksum || object.ContentLength !== body.length) throw new Error(`S3 verification failed: ${relative}`);
@@ -62,7 +59,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     if (!process.env.MONGO_URI || !config.bucket || !config.region) throw new Error("MONGO_URI, S3_BUCKET and AWS_REGION are required");
     await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
     const client = new S3Client({ region: config.region, maxAttempts: 3 });
-    const root = path.resolve(process.env.UPLOAD_DIR || "uploads");
+    const root = path.resolve(process.env.LEGACY_UPLOAD_DIR || process.env.UPLOAD_DIR || "uploads");
     // Fixed heroes are handled by migrate:heroes, using the original Nginx files.
     const collections = [
       [Blog, { image: "blogImage" }], [Project, { image: "projectImage" }],

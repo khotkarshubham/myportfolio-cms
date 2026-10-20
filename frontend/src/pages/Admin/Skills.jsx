@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useEffect, useState } from "react";
 import API from "../../services/api";
 import SkillIcon, { hasSkillIcon } from "../../components/SkillIcon";
@@ -15,7 +16,7 @@ export default function Skills() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const canEdit = ["superadmin", "editor"].includes(
-    localStorage.getItem("admin_role"),
+    adminSession.getItem("admin_role"),
   );
   const loadSkills = async () => {
     setLoading(true);

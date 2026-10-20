@@ -125,6 +125,7 @@ export const createCertification = async (req, res) => {
       file: uploadedImagePath || ""
     });
 
+    req.mediaCommitted = true;
     await logAdminAction(req, {
       action: "CREATE_CERTIFICATION",
       entity: "Certification",
@@ -143,7 +144,7 @@ export const createCertification = async (req, res) => {
       "Certification created successfully"
     );
   } catch (error) {
-    if (uploadedImagePath) {
+    if (uploadedImagePath && !req.mediaCommitted) {
       await removeUploadFile(uploadedImagePath);
     }
 
@@ -244,6 +245,7 @@ export const updateCertification = async (req, res) => {
      * Save database changes first.
      */
     await certification.save();
+    req.mediaCommitted = true;
 
     /*
      * Delete old image only after successful database save.
@@ -282,7 +284,7 @@ export const updateCertification = async (req, res) => {
     /*
      * Remove a newly uploaded file if the database update failed.
      */
-    if (newImagePath) {
+    if (newImagePath && !req.mediaCommitted) {
       await removeUploadFile(newImagePath);
     }
 

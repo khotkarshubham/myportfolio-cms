@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useEffect, useRef, useState } from "react";
 import assetUrl from "../../utils/assetUrl";
 import API from "../../services/api";
@@ -26,7 +27,7 @@ export default function Blogs() {
   const [notice, setNotice] = useState("");
   const editor = useRef(null);
   const canEdit = ["superadmin", "editor"].includes(
-    localStorage.getItem("admin_role"),
+    adminSession.getItem("admin_role"),
   );
   const load = async () => {
     setLoading(true);

@@ -1,3 +1,4 @@
+import { adminSession } from "../../services/adminSession.js";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../../services/api";
@@ -18,8 +19,8 @@ import {
 } from "react-icons/fi";
 
 export default function Dashboard() {
-  const role = localStorage.getItem("admin_role");
-  const email = localStorage.getItem("admin_email");
+  const role = adminSession.getItem("admin_role");
+  const email = adminSession.getItem("admin_email");
   const [stats, setStats] = useState({});
   const [messages, setMessages] = useState(null);
   const [blogs, setBlogs] = useState(null);

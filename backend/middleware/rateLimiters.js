@@ -56,3 +56,8 @@ export const analyticsLimiter = rateLimit({
   legacyHeaders: false,
   handler: rateLimitHandler
 });
+
+export const mediaWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 60, keyGenerator: req => req.user.id,
+  standardHeaders: true, legacyHeaders: false, handler: rateLimitHandler
+});

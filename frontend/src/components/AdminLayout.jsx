@@ -1,3 +1,4 @@
+import { adminSession } from "../services/adminSession.js";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -24,8 +25,8 @@ export default function AdminLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const role = localStorage.getItem("admin_role");
-  const email = localStorage.getItem("admin_email");
+  const role = adminSession.getItem("admin_role");
+  const email = adminSession.getItem("admin_email");
 
   const menu = [
     { name: "Dashboard", path: "/admin", icon: <FiGrid /> },
@@ -80,8 +81,8 @@ export default function AdminLayout({ children }) {
   const logout = async () => {
     try {
       await API.post("/auth/logout");
-      localStorage.removeItem("admin_role");
-      localStorage.removeItem("admin_email");
+      adminSession.removeItem("admin_role");
+      adminSession.removeItem("admin_email");
       navigate("/admin/login");
     } catch {
       window.alert("Unable to sign out. Please try again.");
